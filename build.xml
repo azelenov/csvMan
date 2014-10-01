@@ -1,4 +1,6 @@
-<project>
+<!--suppress XmlUnboundNsPrefix -->
+<project name="Connector API analytics tool" default="build">
+    <typedef resource="org/example/tasks.properties" uri="antlib:org.apache.tools.ant"/>
 <!--configuration-->
     <property name = "python_path" value="python"/>
     <property name = "script" value="csvman.py"/>
@@ -36,6 +38,7 @@
         <delete dir="${key_distr_fq}"/>
         <delete dir="${key_count_avg}"/>
         <delete dir="${aggr_dir}"/>
+        <mkdir dir="output" />
     </target>
 
     <!--Tests-->
@@ -149,7 +152,7 @@
     </target>
 
 
-    <!--agregated targets-->
+    <!--aggregated targets-->
     <target name="test" depends="test1, test2, test3" />
     <target name="split" depends="split1, split2" />
     <target name="frequency" depends="frequency1, frequency2" />
