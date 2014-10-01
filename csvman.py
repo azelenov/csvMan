@@ -297,8 +297,8 @@ class Folder:#All things with folders
 
 
 class Extractor(CSVMan):#Split files into parts and more
-    def __init__(self,path,dialect=None):
-        self.c=CSVMan(path,dialect)
+    def __init__(self, path, dialect=None):
+        self.c=CSVMan(path, dialect)
 
     def ReMatched(self,TarCol,regEx,cs=False,f=False):#filter values in target column using regular expressions
         data=self.c.dRead()
