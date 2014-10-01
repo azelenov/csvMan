@@ -20,7 +20,7 @@ class CSVMan: #main class for CSV files operations
         #     self.auto_dialect_detection()
         # except (Exception):
         #     self.sniff()
-        csv.register_dialect('cd',delimiter=',',quotechar='"',quoting=csv.QUOTE_ALL,lineterminator='\n')
+        csv.register_dialect('cd', delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL, lineterminator='\n')
         self.dialect = 'cd'
 
         self.head=self.dRead().fieldnames
@@ -220,12 +220,12 @@ class CSVMan: #main class for CSV files operations
 
 
 class Ranges(CSVMan):#this class is DEPRECATED!!!
-    def __init__(self,path):
-        self.c=CSVMan(path)
+    def __init__(self, path):
+        CSVMan.__init__(self, path)
 
     def rangeStat(self,column): #print main file ranges in CSV column
-        print self.c.path
-        ranges=self.c.get_column(column)
+        print self.path
+        ranges=self.get_column(column)
         ranges=sorted(ranges)
         print "all scores in file:",len(ranges)
         print "Max score:",ranges[-1]
@@ -233,7 +233,7 @@ class Ranges(CSVMan):#this class is DEPRECATED!!!
         print "Main range:",float(ranges[-1])-float(ranges[0])
 
     def rangesStat(self,column,values): #print ranges in CSV column according to values
-        ranges=self.c.get_column(column)
+        ranges=self.get_column(column)
         while len(values)!=1:
             #print values
             start=values[0]
@@ -261,13 +261,13 @@ class Ranges(CSVMan):#this class is DEPRECATED!!!
 
     def OneRange(self,column, Rang):
         print Rang
-        data=self.c.dRead()
+        data=self.dRead()
         res=[]
         for row in data:
             try:
                 cell=eval(row[column])
             except ValueError:
-                print cell
+                pass
             else:
                 if float(row[column])==Rang:
                     #print row[column]
@@ -298,10 +298,10 @@ class Folder:#All things with folders
 
 class Extractor(CSVMan):#Split files into parts and more
     def __init__(self, path, dialect=None):
-        self.c=CSVMan(path, dialect)
+        CSVMan.__init__(self, path, dialect)
 
     def ReMatched(self,TarCol,regEx,cs=False,f=False):#filter values in target column using regular expressions
-        data=self.c.dRead()
+        data=self.dRead()
         if cs==False:
             reg=re.compile(regEx,re.I)
         else:
@@ -312,17 +312,17 @@ class Extractor(CSVMan):#Split files into parts and more
                 if re.search(reg,row[TarCol]): res.append(row)
             elif f==True:
                 if re.match(reg,row[TarCol]): res.append(row)
-        oPath=self.c.FileName('re_matched')
-        self.c.dWrite(res,oPath,data.fieldnames)
+        oPath=self.FileName('re_matched')
+        self.dWrite(res,oPath,data.fieldnames)
 
     def inList(self,TarCol,List,limit=None,sufix='matched'):#filter values in target column matched in List
         print 'max match=',limit
         #sys.exit()
-        data=self.c.dRead()
+        data=self.dRead()
         res=[]
         if limit!=None:
             maxcount=int(limit)
-            columns=set(self.c.get_column(TarCol))
+            columns=set(self.get_column(TarCol))
             stats={}
             for row in data:
                 value=row[TarCol].lower()
@@ -339,13 +339,13 @@ class Extractor(CSVMan):#Split files into parts and more
                 if value in List:
                     res.append(row)
         if limit==None:
-            oPath=self.c.FileName(sufix)
+            oPath=self.FileName(sufix)
         else:
-            oPath=self.c.FileName(sufix+'_limit='+str(limit))
-        self.c.dWrite(res,oPath, data.fieldnames)
+            oPath=self.FileName(sufix+'_limit='+str(limit))
+        self.dWrite(res,oPath, data.fieldnames)
 
     def ReList(self,TarCol,List,sufix='REList'):#filter values in target column matched in regex List
-        data=self.c.dRead()
+        data=self.dRead()
         missed=[]
         hit=[]
         i=0
@@ -364,11 +364,11 @@ class Extractor(CSVMan):#Split files into parts and more
             if flag: missed.append(row)
             i=i+1
 
-        mPath=self.c.FileName(sufix+"_NOT_matched")
-        hPath=self.c.FileName(sufix+"_matched")
+        mPath=self.FileName(sufix+"_NOT_matched")
+        hPath=self.FileName(sufix+"_matched")
 
-        self.c.dWrite(missed,mPath,data.fieldnames)
-        self.c.dWrite(hit,hPath,data.fieldnames)
+        self.dWrite(missed,mPath,data.fieldnames)
+        self.dWrite(hit,hPath,data.fieldnames)
         finish = time.clock() - start
         print "total=", i
         print "Processed time in seconds:", finish
@@ -378,7 +378,7 @@ class Extractor(CSVMan):#Split files into parts and more
     def BlackList(self,TarCol,BlackList,sufix='BlackList'):#filter words in target column matched in Black List
         with open(BlackList) as f:
             List=[line.strip().lower() for line in f]
-        data=self.c.dRead()
+        data=self.dRead()
         missed=[]
         hit=[]
         i=0
@@ -401,11 +401,11 @@ class Extractor(CSVMan):#Split files into parts and more
 
             i=i+1
 
-        mPath=self.c.FileName(sufix+"_NOT_matched")
-        hPath=self.c.FileName(sufix+"_matched")
+        mPath=self.FileName(sufix+"_NOT_matched")
+        hPath=self.FileName(sufix+"_matched")
 
-        self.c.dWrite(missed,mPath,data.fieldnames)
-        self.c.dWrite(hit,hPath,data.fieldnames)
+        self.dWrite(missed,mPath,data.fieldnames)
+        self.dWrite(hit,hPath,data.fieldnames)
         finish=time.clock()-start
         print "total=",i
         print "Processed time in seconds:",finish
@@ -415,7 +415,7 @@ class Extractor(CSVMan):#Split files into parts and more
     def BlackList2(self,TarCol,BlackList,wordsmatch=False,sufix='BlackList'):#filter words in target column matched in Black List
         with open(BlackList) as f:
             List=[line.strip().lower() for line in f]
-        data=self.c.dRead()
+        data=self.dRead()
         missed=[]
         hit=[]
         i=0
@@ -446,11 +446,11 @@ class Extractor(CSVMan):#Split files into parts and more
                     missed.append(row)
             i=i+1
 
-        mPath=self.c.FileName(sufix+"_NOT_matched")
-        hPath=self.c.FileName(sufix+"_matched")
+        mPath=self.FileName(sufix+"_NOT_matched")
+        hPath=self.FileName(sufix+"_matched")
 
-        self.c.dWrite(missed,mPath,data.fieldnames)
-        self.c.dWrite(hit,hPath,data.fieldnames)
+        self.dWrite(missed,mPath,data.fieldnames)
+        self.dWrite(hit,hPath,data.fieldnames)
         finish=time.clock()-start
         print "total=",i
         print "Processed time in seconds:",finish
@@ -458,14 +458,14 @@ class Extractor(CSVMan):#Split files into parts and more
 
 
     def NotiIList(self,TarCol,List):#filter values in target column matched in List
-        data=self.c.dRead()
+        data=self.dRead()
         res=[]
         for row in data:
             value=row[TarCol].lower()
             if value not in List:
                 res.append(row)
-        oPath=self.c.FileName('NOT_matched')
-        self.c.dWrite(res,oPath,data.fieldnames)
+        oPath=self.FileName('NOT_matched')
+        self.dWrite(res,oPath,data.fieldnames)
 
     def inFile(self,TarCol,FileName,limit):#filter values in target column matched in File
         with open(FileName) as f:
@@ -492,9 +492,9 @@ class Extractor(CSVMan):#Split files into parts and more
         print time.asctime()
         print "Processing rows.."
         start=time.clock()
-        data=self.c.dRead()
+        data=self.dRead()
         header=data.fieldnames
-        path=self.c.FileName('filtered')
+        path=self.FileName('filtered')
         for key in colValPairs:
             if key not in header:
                 sys.exit("Input file don't have column: "+key+'\nAvailable column names in CSV header:'+str(header))
@@ -511,19 +511,20 @@ class Extractor(CSVMan):#Split files into parts and more
                     flags.append(flag)
             if False not in flags:
                 newdata.append(row)
-        self.c.dWrite(newdata,path,header)
+        self.dWrite(newdata,path,header)
 
         finish=time.clock()-start
         print "Processed time in seconds:",finish
 
     def FilterFile2(self,colValPairs,oper):#filter file according multiple colums values
-        data=self.c.dRead()
+        data=self.dRead()
         header=data.fieldnames
-        path=self.c.FileName('filtered')
+        path=self.FileName('filtered')
 
 
         def makeEx(value,colValPairs,oper):
             i=0
+            expr = ""
             for key in colValPairs:
                 if key not in header:
                     sys.exit("Input file don't have column: "+key+'\nAvailable column names in CSV header:'+str(header))
@@ -553,13 +554,13 @@ class Extractor(CSVMan):#Split files into parts and more
                     flags.append(flag)
             if False not in flags:
                 newdata.append(row)
-        self.c.dWrite(newdata,path,header)
+        self.dWrite(newdata,path,header)
 
 
     def split2Files(self, TarCol,  outFolder, empty):#split File into parts according to values in column
         total=0
         start=time.clock()
-        data=self.c.dRead()
+        data=self.dRead()
         #print data.fieldnames
         f=Folder(outFolder)
         f.createF()
@@ -576,13 +577,13 @@ class Extractor(CSVMan):#Split files into parts and more
             if p!=None:
                 if stat.has_key(p):
                     with open(p+'.csv','a') as out:
-                        w=csv.DictWriter(out,fieldnames=data.fieldnames,dialect=self.c.dialect)
+                        w=csv.DictWriter(out,fieldnames=data.fieldnames,dialect=self.dialect)
                         w.writerow(cell)
                     stat[p]=stat[p]+1
                 else:
                     stat[p]=1
                     with open(p+'.csv','a') as out:
-                        w=csv.DictWriter(out,fieldnames=data.fieldnames,dialect=self.c.dialect)
+                        w=csv.DictWriter(out,fieldnames=data.fieldnames,dialect=self.dialect)
                         w.writeheader()
                         w.writerow(cell)
             total=total+1
@@ -594,14 +595,14 @@ class Extractor(CSVMan):#Split files into parts and more
         print "Processed time in seconds:",finish
 
     def get_random(self,rand): #writing random set
-        Dict=self.c.dRead()
+        Dict=self.dRead()
         head=Dict.fieldnames
         data=[row for row in Dict]
         random.shuffle(data)
         data=data[:rand]
-        path=self.c.FileName('random'+str(rand))
+        path=self.FileName('random'+str(rand))
         with open(path,'a') as out:
-            w=csv.DictWriter(out,fieldnames=head,dialect=self.c.dialect)
+            w=csv.DictWriter(out,fieldnames=head,dialect=self.dialect)
             w.writeheader()
             w.writerows(data)
         print "Random set has been writed to file:",path
@@ -625,10 +626,11 @@ class Extractor(CSVMan):#Split files into parts and more
         except:
             print "d column not exist"
         os.chdir(os.pardir)
-        self.c.headStat()
+        self.headStat()
         self.ans=raw_input("Please write your uniq ID column: ")
-        stats=self.c.columnStat(self.ans)
-        testdata=self.c.dRead()
+        stats=self.columnStat(self.ans)
+        testdata=self.dRead()
+        notfound = []
         for d in testdata:
             if d['Status Description'].find("Successfully processed (No")!=-1:
                 self.status=d['Status Description']
@@ -639,7 +641,7 @@ class Extractor(CSVMan):#Split files into parts and more
             if notfound[key]=="":
                 self.clean.append(key)
         newdata=[]
-        data=self.c.dRead()
+        data=self.dRead()
         head=data.fieldnames
         for row in data:
             check=row['check']
@@ -653,16 +655,17 @@ class Extractor(CSVMan):#Split files into parts and more
                 newdata.append(row)
 
         head.remove('check')
-        path=self.c.FileName('FINAL')
-        self.c.dWrite(newdata,path,head)
+        path=self.FileName('FINAL')
+        self.dWrite(newdata,path,head)
 
 
 
 class Merger(CSVMan):#smart merge many file into one
     columns=0
-    def __init__(self,Directory):
-        self.iDir=Directory
-        self.dialect=None
+    def __init__(self, path):
+        CSVMan.__init__(self, path)
+        self.iDir = path
+        self.dialect = None
 
     def merge(self,etalonFile,All='All'):#merge many CSV files
         head=self.etalonHeader(etalonFile)
@@ -751,13 +754,12 @@ class Merger(CSVMan):#smart merge many file into one
 
 
 class HumanParts(CSVMan):
-
-    def __init__(self,path,people):
-        self.path=path
-        self.people=[p for p in people]
-        self.c=CSVMan(path)
-        self.data=self.c.dRead()
-        self.header=self.data.fieldnames
+    def __init__(self, path, people):
+        CSVMan.__init__(self, path)
+        self.path = path
+        self.people = [p for p in people]
+        self.data = self.dRead()
+        self.header = self.data.fieldnames
 
     def countrows(self):
         counter=0
@@ -785,20 +787,20 @@ class HumanParts(CSVMan):
         return parts
 
     def markFile(self):#mark file with person names
-        data=self.c.dRead()
+        data=self.dRead()
         self.header.insert(0,'whose')
-        self.out_path=self.c.FileName('marked')
+        self.out_path=self.FileName('marked')
         parts=self.divide()
         temp_data=[d for d in data]
         with open (self.out_path,'w') as out:
-            w=csv.DictWriter(out,fieldnames=self.header,dialect=self.c.dialect)
+            w=csv.DictWriter(out,fieldnames=self.header,dialect=self.dialect)
             w.writeheader()
             for key in sorted(parts.keys()):
                 for i in range(1,int(parts[key])+1):
                     row=temp_data.pop(0)
                     row['whose']=key
                     w.writerow(row)
-        print "Saved to file:",self.out_path
+        print "Saved to file:", self.out_path
 
 
 class ExcelMan:
@@ -948,7 +950,7 @@ def countrowsD(path):#rewrite
     i=0
     for File in files:
         if i>0:
-            c=CSVMan(File,c.dialect)
+            c=CSVMan(File)
         else:
             c=CSVMan(File)
             i=i+1
@@ -1016,7 +1018,6 @@ def CountClusters(csv_file, target_column, mark, num_of_clusters):
     head=[target_column + ' ranges', 'count']
     out_file=c.FileName('Clusters'+'%'+target_column)
     c.cWrite(c.sortDict(results), head, out_file)
-
 
 
 
@@ -1164,8 +1165,10 @@ def main():
     if args.mode=='hs':
         print "\nHeader statistics output:"
         dia=True
+        dialect = 'a'
         for f in args.CSVfile:
             print f
+
             if dia==True:
                 c=CSVMan(f)
                 dialect=c.dialect
@@ -1193,11 +1196,12 @@ def main():
         e.inFile(args.CSVcol,args.ListFile,args.limit)
     elif args.mode=='ra':
         dia=True
+        dialect = 'a'
         for f in args.CSVfiles:
             print f
             if dia==True:
                 e=Extractor(f)
-                dialect=e.c.dialect
+                dialect=e.dialect
                 e.get_random(args.top)
                 dia=False
             else:
