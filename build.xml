@@ -1,0 +1,182 @@
+<project>
+<!--configuration-->
+    <property name = "python_path" value="python"/>
+    <property name = "script" value="csvman.py"/>
+    <property name = "input_dir" value="input"/>
+
+<!--files and columns-->
+    <property name = "key_count_file" value="input/key_count.csv"/>
+    <property name = "key_count_column" value="keys_per_request"/>
+    <property name = "key_distr_file" value="input/key_distr.csv"/>
+    <property name = "key_distr_column" value="key"/>
+
+    <property name = "multiple_file" value="input/multiple.csv"/>
+    <property name = "multiple_column" value="latency millis per request"/>
+
+    <property name = "split_column" value="collection"/>
+    <property name = "average_column" value="latency"/>
+
+<!--directories-->
+    <property name = "key_count_parts" value="output/key_count_collections"/>
+    <property name = "key_distr_parts" value="output/key_distr_collections"/>
+
+
+    <property name = "key_count_fq" value="output/key_count_frequency"/>
+    <property name = "key_distr_fq" value="output/key_distr_frequency"/>
+
+    <property name = "key_count_avg" value="output/key_count_average"/>
+
+    <property name = "aggr_dir" value="output/aggregated_results"/>
+
+<!--stages-->
+    <target name="clean">
+        <delete dir="${key_count_parts}"/>
+        <delete dir="${key_count_fq}"/>
+        <delete dir="${key_distr_parts}"/>
+        <delete dir="${key_distr_fq}"/>
+        <delete dir="${key_count_avg}"/>
+        <delete dir="${aggr_dir}"/>
+    </target>
+
+    <!--Tests-->
+    <target name="test1" >
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="hs"/>
+            <arg value="${key_count_file}"/>
+        </exec>
+    </target>
+
+    <target name="test2" >
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="hs"/>
+            <arg value="${key_distr_file}"/>
+        </exec>
+    </target>
+
+    <target name="test3" >
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="hs"/>
+            <arg value="${multiple_file}"/>
+        </exec>
+    </target>
+
+    <!--Splitting-->
+    <target name="split1">
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="sp"/>
+            <arg value="${key_count_file}"/>
+            <arg value="${split_column}"/>
+             <arg value="-f"/>
+            <arg value="${key_count_parts}"/>
+        </exec>
+    </target>
+
+    <target name="split2">
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="sp"/>
+            <arg value="${key_distr_file}"/>
+            <arg value="${split_column}"/>
+            <arg value="-f"/>
+            <arg value="${key_distr_parts}"/>
+        </exec>
+    </target>
+
+    <!--Counting frequency-->
+    <target name="frequency1">
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="fq"/>
+            <arg value="${key_count_parts}"/>
+            <arg value="${key_count_column}"/>
+        </exec>
+        <move todir="${key_count_fq}">
+            <fileset dir="${key_count_parts}">
+                <include name="**%Frequency**"/>
+             </fileset>
+        </move>
+    </target>
+
+
+    <target name="frequency2">
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="fq"/>
+            <arg value="${key_distr_parts}"/>
+            <arg value="${key_distr_column}"/>
+        </exec>
+        <move todir="${key_distr_fq}">
+            <fileset dir="${key_distr_parts}">
+                <include name="**%Frequency**"/>
+             </fileset>
+        </move>
+    </target>
+
+
+<!--Counting averages-->
+    <target name="average_per_file">
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="avg"/>
+            <arg value="${key_count_parts}"/>
+            <arg value="${key_count_column}"/>
+            <arg value="${average_column}"/>
+        </exec>
+        <move todir="${key_count_avg}">
+            <fileset dir="${key_count_parts}">
+                <include name="**%Average**"/>
+             </fileset>
+        </move>
+    </target>
+
+    <target name="total_average">
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="avg"/>
+            <arg value="${key_count_file}"/>
+            <arg value="${split_column}"/>
+            <arg value="${average_column}"/>
+        </exec>
+        <move todir="${aggr_dir}">
+            <fileset dir="${input_dir}">
+                <include name="**%Average**"/>
+             </fileset>
+        </move>
+    </target>
+
+
+    <!--agregated targets-->
+    <target name="test" depends="test1, test2, test3" />
+    <target name="split" depends="split1, split2" />
+    <target name="frequency" depends="frequency1, frequency2" />
+    <target name="average" depends="average_per_file, total_average" />
+
+
+    <target name="cluster">
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="clu"/>
+            <arg value="${multiple_file}"/>
+            <arg value="${multiple_column}"/>
+            <arg value="-m"/>
+            <arg value="ms"/>
+            <arg value="-c"/>
+            <arg value="100"/>
+        </exec>
+        <move todir="${aggr_dir}">
+            <fileset dir="${input_dir}">
+                <include name="**%Clusters**"/>
+             </fileset>
+        </move>
+    </target>
+
+    <target name="build" depends="clean,test,split,frequency, average, cluster" />
+
+
+
+
+</project>
