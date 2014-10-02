@@ -258,18 +258,34 @@ class Ranges(CSVMan):  #this class is DEPRECATED!!!
         print "Min score:", ranges[0]
         print "Main range:", float(ranges[-1]) - float(ranges[0])
 
-    def rangesStat(self, column, values):  #print ranges in CSV column according to values
+    #print ranges in CSV column according to values
+    def rangesStat(self, column, values):
         ranges = self.get_column(column)
+        ranges = [self.convert_type(r) for r in ranges]
+        values = [self.convert_type(v) for v in values]
+        #Calculating min, max
+        min_value = min(ranges)
+        max_value = max(ranges)
+        if min_value < values[0]:
+            values.insert(0, min_value)
+        if max_value > values[-1]:
+            values.append(max_value)
+        print "Ranges:", values
+        print "Min:", min_value
+        print "Max:", max_value
+        print "Avg:", sum(ranges) / float(len(ranges))
+        results = []
+
         while len(values) != 1:
-            #print values
             start = values[0]
             end = values[1]
             s = 0
             for r in ranges:
-                if start < int(r) <= end:
+                if start < r <= end:
                     s += 1
-            print "range", start + 1, "-", end, ":", s
+            results.append(["range " + str(start) + "-" + str(end), s])
             values.pop(0)
+        return results
 
     def rangesCut(self, column, ranges):
         parts = []
@@ -284,6 +300,7 @@ class Ranges(CSVMan):  #this class is DEPRECATED!!!
             i += 1
         print starts
         print ends
+
 
     def OneRange(self, column, Rang):
         print Rang
@@ -1067,6 +1084,17 @@ def CountClusters(csv_file, target_column, mark, num_of_clusters, sort_by_keys, 
     out_file = c.FileName('Clusters' + '%' + target_column)
     c.cWrite(c.sort_dictionary(results, sort_by_keys, reverse), head, out_file)
 
+def CountRanges(csv_file, target_column, write, ranges):
+    r = Ranges(csv_file)
+    stats = r.rangesStat(target_column, ranges)
+    for s in stats:
+        print s[0], ":", s[1]
+    if write:
+        head = [target_column + ' ranges', 'count']
+        out_file = r.FileName('Ranges' + '%' + target_column)
+        r.cWrite(stats, head, out_file)
+
+
 def get_default_sorting(sort_by_keys):
     if not sort_by_keys:
         sort_by_keys = 1
@@ -1214,11 +1242,11 @@ def main():
     clusters.add_argument('-k', '--sort_by_keys', help='sort by keys, default sort by values ', action='store_true')
     clusters.add_argument('-r', '--reverse', help='sort reverse ', action='store_true')
 
-
-    #rangescut=subparsers.add_parser('rc',help='extract rows according to ranges')
-    #rangescut.add_argument('CSVfile',help='input CSV file')
-    #rangescut.add_argument('CSVcol',help='column in CSV file')
-    #rangescut.add_argument('ranges',help='ranges for exracting',nargs="+")
+    count_ranges = subparsers.add_parser('rc', help='generate statistics according to ranges arguments')
+    count_ranges.add_argument('csv_file',help='input CSV file')
+    count_ranges.add_argument('target_column', help='column in CSV file')
+    count_ranges.add_argument('ranges', help='ranges for exracting',nargs="+")
+    count_ranges.add_argument('-w', '--write', help='write to file instead of printing to console', action='store_true')
 
     #onerange=subparsers.add_parser('or',help='extract rows matching digit')
     #onerange.add_argument('CSVfile',help='input CSV file')
@@ -1366,6 +1394,8 @@ def main():
     if args.mode == 'clu':
         print "Cluster analysis"
         CountClusters(args.csv_file, args.target_column, args.mark, args.clusters, args.sort_by_keys, args.reverse)
+    if args.mode == 'rc':
+        CountRanges(args.csv_file, args.target_column, args.write, args.ranges)
 
 
 if __name__ == "__main__": main()

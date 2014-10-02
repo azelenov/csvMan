@@ -160,24 +160,27 @@
     <target name="frequency" depends="frequency1, frequency2" />
     <target name="average" depends="average_per_file, total_average" />
 
-    <target name="cluster">
+    <target name="ranges">
         <exec executable="${python_path}" failonerror="true">
             <arg value="${script}"/>
-            <arg value="clu"/>
+            <arg value="rc"/>
             <arg value="${multiple_file}"/>
             <arg value="${multiple_column}"/>
-            <arg value="-m"/>
-            <arg value="ms"/>
-            <arg value="-c"/>
+            <arg value="-w"/>
+            <arg value="3"/>
+            <arg value="5"/>
+            <arg value="50"/>
             <arg value="100"/>
+            <arg value="300"/>
+            <arg value="500"/>
         </exec>
         <move todir="${aggr_dir}">
             <fileset dir="${input_dir}">
-                <include name="**%Clusters**"/>
+                <include name="**%Ranges**"/>
              </fileset>
         </move>
     </target>
 
-    <target name="build" depends="clean,test,split,frequency, average, cluster" />
+    <target name="build" depends="clean,test,split,frequency, average, ranges" />
 
 </project>
