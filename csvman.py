@@ -1,3 +1,5 @@
+import ast
+
 __author__ = 'ozelenov'
 
 #!/usr/bin/python2.7
@@ -148,9 +150,27 @@ class CSVMan:
         return avg_stats
 
 
-    def sortDict(self, Dict, sort_index=1):  #convert dictionary to sorted list
-        sortedList = sorted(Dict.iteritems(), key=operator.itemgetter(sort_index), reverse=True)
-        return sortedList
+    #convert dictionary to sorted list
+    def sort_dictionary(self, dictionary, sort_index, reverse):
+        converted_dict = self.convert_to_natural_types(dictionary)
+        sorted_list = sorted(converted_dict.iteritems(), key=operator.itemgetter(sort_index), reverse=reverse)
+        return sorted_list
+
+    def convert_to_natural_types(self, dictionary):
+        converted = {}
+        for key, value in dictionary.iteritems():
+            new_key = self.convert_type(key)
+            new_value = self.convert_type(value)
+            converted[new_key] = new_value
+        return converted
+
+    def convert_type(self, value):
+        try:
+            value = ast.literal_eval(value)
+        except ValueError:
+            pass
+        return value
+
 
     def checkF(self, path):
         if os.path.exists(path):
@@ -194,7 +214,7 @@ class CSVMan:
                 else:
                     sufixes[main_part] = 1
         head = ['Suffix', 'Count']
-        data = self.sortDict(sufixes)
+        data = self.sort_dictionary(sufixes)
         out = self.FileName('TLD')
         self.cWrite(data, head, out)
         return data
@@ -890,19 +910,20 @@ def Scores(inFile, TarCol, scores=False):  # count ranges of scores in CSV file
         r.rangesStat(TarCol, range(650, 1050, 50))
 
 
-def Frequency(path, TarCol, top=None):  # count Domain Frequancy in file
+def Frequency(path, TarCol,  sort_by_keys, reverse, top):  # count Domain Frequancy in file
     if os.path.isdir(path):
         print "Processing a folder"
         f = Folder(path)
         files = f.listF()
         print files
         for f in files:
-            Frequency(path + '/' + f, TarCol)
+            Frequency(path + '/' + f, TarCol, sort_by_keys, reverse, top)
     else:
         c = CSVMan(path)
         print "\nFrequency on column"
         head = [TarCol, 'Count']
-        data = c.sortDict(c.columnStat(TarCol))
+        sort_by_keys = get_default_sorting(sort_by_keys)
+        data = c.sort_dictionary(c.columnStat(TarCol), sort_by_keys, reverse)
         out = c.FileName('Frequency' + '%' + TarCol)
         if top: data = data[:top]
         c.cWrite(data, head, out)
@@ -989,20 +1010,21 @@ def RandDomains(CSVfile, DomainColumn, rand, limit=None):
     e.inList(DomainColumn, List[:rand], limit, sufix='rand' + str(rand) + str(DomainColumn))
 
 
-def Average(path, csv_column, csv_avg_column):
+def Average(path, csv_column, csv_avg_column, sort_by_keys, reverse):
     if os.path.isdir(path):
         print "Processing a folder"
         f = Folder(path)
         files = f.listF()
         print files
         for f in files:
-            Average(path + '/' + f, csv_column, csv_avg_column)
+            Average(path + '/' + f, csv_column, csv_avg_column, sort_by_keys, reverse)
     else:
         print 'Processing a file'
         c = CSVMan(path)
         print "\nAverage on column"
         head = [csv_column, 'average_' + csv_avg_column]
-        data = c.sortDict(c.average_stats(csv_column, csv_avg_column))
+        sort_by_keys = get_default_sorting(sort_by_keys)
+        data = c.sort_dictionary(c.average_stats(csv_column, csv_avg_column), sort_by_keys, reverse)
         out = c.FileName('Average' + '%' + csv_avg_column)
         c.cWrite(data, head, out)
 
@@ -1021,19 +1043,20 @@ def Plot(path, x_col, y_col):
         data = {}
         for row in c.read_as_dict():
             data[row[x_col]] = row[y_col]
-        data = c.sortDict(data, 0)
+        data = c.sort_dictionary(data, 0)
         p = Plotter()
         x, y = p.convert_to_axises(data)
         p.plot_graph(x, y)
 
 
-def CountClusters(csv_file, target_column, mark, num_of_clusters):
+def CountClusters(csv_file, target_column, mark, num_of_clusters, sort_by_keys, reverse):
     if mark is None:
         mark = ''
     if num_of_clusters is None:
         num_of_clusters = 10
     else:
         num_of_clusters = int(num_of_clusters)
+    sort_by_keys = get_default_sorting(sort_by_keys)
     c = CSVMan(csv_file)
     data = c.get_column(target_column)
     clus = Clusters()
@@ -1042,7 +1065,14 @@ def CountClusters(csv_file, target_column, mark, num_of_clusters):
 
     head = [target_column + ' ranges', 'count']
     out_file = c.FileName('Clusters' + '%' + target_column)
-    c.cWrite(c.sortDict(results), head, out_file)
+    c.cWrite(c.sort_dictionary(results, sort_by_keys, reverse), head, out_file)
+
+def get_default_sorting(sort_by_keys):
+    if not sort_by_keys:
+        sort_by_keys = 1
+    else:
+        sort_by_keys = 0
+    return sort_by_keys
 
 
 def main():
@@ -1055,10 +1085,7 @@ def main():
     headstat = subparsers.add_parser('hs', help='generate statistics for CSV header')
     headstat.add_argument('CSVfile', help='input CSV file', nargs='+')
 
-    frequency = subparsers.add_parser('fq', help='generate frequency statistics for CSV file column')
-    frequency.add_argument('CSVfile', help='input CSV file')
-    frequency.add_argument('CSVcol', help='CSV file column')
-    frequency.add_argument('-top', help='choose statistics row limit', type=int)
+
 
     matchinfile = subparsers.add_parser('mf', help='extract CSV rows mathed in list file to CSV column')
     matchinfile.add_argument('CSVfile', help='input CSV file')
@@ -1163,6 +1190,16 @@ def main():
     avg_per_column.add_argument('csv_file', help='input CSV file or folder')
     avg_per_column.add_argument('csv_column', help='CSV file column for grouping')
     avg_per_column.add_argument('csv_avg_column', help='CSV file column for average')
+    avg_per_column.add_argument('-k', '--sort_by_keys', help='sort by keys, default sort by values ',
+                                action='store_true')
+    avg_per_column.add_argument('-r', '--reverse', help='sort reverse ', action='store_true')
+
+    frequency = subparsers.add_parser('fq', help='generate frequency statistics for CSV file column')
+    frequency.add_argument('CSVfile', help='input CSV file')
+    frequency.add_argument('CSVcol', help='CSV file column')
+    frequency.add_argument('-top', help='choose statistics row limit', type=int)
+    frequency.add_argument('-k', '--sort_by_keys', help='sort by keys, default sort by values ', action='store_true')
+    frequency.add_argument('-r', '--reverse', help='sort reverse ', action='store_true')
 
     plot = subparsers.add_parser('plt', help='plot graphs')
     plot.add_argument('csv_file', help='input CSV file or folder')
@@ -1174,6 +1211,8 @@ def main():
     clusters.add_argument('target_column', help='csv column for analysis')
     clusters.add_argument('-m', '--mark', help='fullmatch or by word, default fullmatch')
     clusters.add_argument('-c', '--clusters', help='number of clusters')
+    clusters.add_argument('-k', '--sort_by_keys', help='sort by keys, default sort by values ', action='store_true')
+    clusters.add_argument('-r', '--reverse', help='sort reverse ', action='store_true')
 
 
     #rangescut=subparsers.add_parser('rc',help='extract rows according to ranges')
@@ -1216,7 +1255,7 @@ def main():
         c = CSVMan(args.CSVfile)
         c.TopLevelDomain(args.CSVcol)
     elif args.mode == 'fq':
-        Frequency(args.CSVfile, args.CSVcol, args.top)
+        Frequency(args.CSVfile, args.CSVcol, args.sort_by_keys, args.reverse, args.top)
     elif args.mode == 'mf':
         e = Extractor(args.CSVfile)
         print "\nMatching in  file:"
@@ -1320,13 +1359,13 @@ def main():
         print 'copy xmls files'
     if args.mode == 'avg':
         print "average per column"
-        Average(args.csv_file, args.csv_column, args.csv_avg_column)
+        Average(args.csv_file, args.csv_column, args.csv_avg_column, args.sort_by_keys, args.reverse)
     if args.mode == 'plt':
         print "plotting data"
         Plot(args.csv_file, args.x_column, args.y_column)
     if args.mode == 'clu':
         print "Cluster analysis"
-        CountClusters(args.csv_file, args.target_column, args.mark, args.clusters)
+        CountClusters(args.csv_file, args.target_column, args.mark, args.clusters, args.sort_by_keys, args.reverse)
 
 
 if __name__ == "__main__": main()

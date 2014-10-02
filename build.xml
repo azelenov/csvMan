@@ -96,6 +96,7 @@
             <arg value="fq"/>
             <arg value="${key_count_parts}"/>
             <arg value="${key_count_column}"/>
+            <arg value="-k"/>
         </exec>
         <move todir="${key_count_fq}">
             <fileset dir="${key_count_parts}">
@@ -111,6 +112,7 @@
             <arg value="fq"/>
             <arg value="${key_distr_parts}"/>
             <arg value="${key_distr_column}"/>
+            <arg value="-r"/>
         </exec>
         <move todir="${key_distr_fq}">
             <fileset dir="${key_distr_parts}">
@@ -118,7 +120,6 @@
              </fileset>
         </move>
     </target>
-
 
 <!--Counting averages-->
     <target name="average_per_file">
@@ -128,6 +129,7 @@
             <arg value="${key_count_parts}"/>
             <arg value="${key_count_column}"/>
             <arg value="${average_column}"/>
+            <arg value="-k"/>
         </exec>
         <move todir="${key_count_avg}">
             <fileset dir="${key_count_parts}">
@@ -143,6 +145,7 @@
             <arg value="${key_count_file}"/>
             <arg value="${split_column}"/>
             <arg value="${average_column}"/>
+            <arg value="-k"/>
         </exec>
         <move todir="${aggr_dir}">
             <fileset dir="${input_dir}">
@@ -151,13 +154,11 @@
         </move>
     </target>
 
-
     <!--aggregated targets-->
     <target name="test" depends="test1, test2, test3" />
     <target name="split" depends="split1, split2" />
     <target name="frequency" depends="frequency1, frequency2" />
     <target name="average" depends="average_per_file, total_average" />
-
 
     <target name="cluster">
         <exec executable="${python_path}" failonerror="true">
@@ -178,8 +179,5 @@
     </target>
 
     <target name="build" depends="clean,test,split,frequency, average, cluster" />
-
-
-
 
 </project>
