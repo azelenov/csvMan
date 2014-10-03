@@ -40,18 +40,18 @@ class CSVMan:
         return r
 
     #write dictionary data to csv file
-    def write_dictionary(self, List, OutPath, header):
-        mode = self.checkF(OutPath)
-        with open(OutPath, mode) as out:
+    def write_dictionary(self, data, out_path, header):
+        mode = self.checkF(out_path)
+        with open(out_path, mode) as out:
             w = csv.DictWriter(out, fieldnames=header, dialect=self.dialect)
             w.writeheader()
             try:
-                w.writerows(List)
+                w.writerows(data)
             except TypeError:
                 sys.exit(
                     'Current CSV dialect incorect for file OR file has data without columns!!!'
                     'Please repeat with other dialect or add columns manually.')
-        print "File " + OutPath + " has been written,", len(List), ' rows'
+        print "File " + out_path + " has been written,", len(data), ' rows'
 
     def auto_dialect_detection(self):
         try:
@@ -620,40 +620,33 @@ class Extractor(CSVMan):  #Split files into parts and more
 
     def split2Files(self, TarCol, outFolder, empty):  #split File into parts according to values in column
         total = 0
-        start = time.clock()
         data = self.read_as_dict()
         #print data.fieldnames
         f = Folder(outFolder)
         f.createF()
         os.chdir(f.Dir)
         stat = {}
-        for cell in data:
-            if cell[TarCol] == "":
+        results = {}
+        for row in data:
+            if row[TarCol] == "":
                 if empty:
-                    p = "EMPTY"
+                    key = "EMPTY"
                 else:
-                    p = None
+                    key = None
             else:
-                p = cell[TarCol]
-            if p is not None:
-                if stat.has_key(p):
-                    with open(p + '.csv', 'a') as out:
-                        w = csv.DictWriter(out, fieldnames=data.fieldnames, dialect=self.dialect)
-                        w.writerow(cell)
-                    stat[p] += 1
+                key = row[TarCol]
+            if key is not None:
+                if key in stat:
+                    stat[key] += 1
+                    results[key].append(row)
                 else:
-                    stat[p] = 1
-                    with open(p + '.csv', 'a') as out:
-                        w = csv.DictWriter(out, fieldnames=data.fieldnames, dialect=self.dialect)
-                        w.writeheader()
-                        w.writerow(cell)
+                    stat[key] = 1
+                    results[key] = []
             total += 1
-
         print "File has been splitted successfully into parts:"
-        print stat
         print "Total rows count:", total
-        finish = time.clock() - start
-        print "Processed time in seconds:", finish
+        print stat
+        return results
 
     def get_random(self, rand):  #writing random set
         Dict = self.read_as_dict()
@@ -674,47 +667,6 @@ class Extractor(CSVMan):  #Split files into parts and more
                 row[key] = ""
         self.status = row['Status Description']
         return row
-
-
-    def PrepareFile(self):
-        self.split2Files(TarCol='check', empty=False, outFolder='ErrorsFeedback')
-        try:
-            os.rename('e.csv', 'Edited.csv')
-        except OSError:
-            print "e column not exist"
-        try:
-            os.rename('d.csv', 'Deleted.csv')
-        except OSError:
-            print "d column not exist"
-        os.chdir(os.pardir)
-        self.headStat()
-        stats = self.columnStat(self.ans)
-        testdata = self.read_as_dict()
-        notfound = []
-        for d in testdata:
-            if d['Status Description'].find("Successfully processed (No") != -1:
-                notfound = d
-                break
-        for key in notfound:
-            if notfound[key] == "":
-                self.clean.append(key)
-        newdata = []
-        data = self.read_as_dict()
-        head = data.fieldnames
-        for row in data:
-            check = row['check']
-            row.pop('check')
-            if check == 'd':
-                stats[row[self.ans]] -= 1
-                if stats[row[self.ans]] <= 0:
-                    row = self.CleanRow(row)
-                    newdata.append(row)
-            else:
-                newdata.append(row)
-
-        head.remove('check')
-        path = self.FileName('FINAL')
-        self.write_dictionary(newdata, path, head)
 
 
 class Merger(CSVMan):  #smart merge many file into one
@@ -900,17 +852,18 @@ class Plotter:
         print y_axis
         return x_axis, y_axis
 
-#Mean it's average, std - is standard deviation(sigma)
+    #Mean it's average, std - is standard deviation(sigma)
     def plot_stats(self, mean, std):
-        x = linspace(-3*std, 3*std, 50)
+        x = linspace(-3 * std, 3 * std, 50)
         # SF at these values
         y = stats.norm.sf(x, loc=mean, scale=std)
-        plt.plot(x,y, color="black")
+        plt.plot(x, y, color="black")
         plt.xlabel("Variate")
         plt.ylabel("Probability")
         plt.title("SF for Gaussian of mean = {0} & std. deviation = {1}".format(
-                   mean, std))
+            mean, std))
         plt.draw()
+
 
 class Clusters:
     def __init__(self):
@@ -950,7 +903,7 @@ def Scores(inFile, TarCol, scores=False):  # count ranges of scores in CSV file
         r.rangesStat(TarCol, range(650, 1050, 50))
 
 
-def Frequency(path, TarCol,  sort_by_keys, reverse, top):  # count Domain Frequancy in file
+def Frequency(path, TarCol, sort_by_keys, reverse, top):  # count Domain Frequancy in file
     if os.path.isdir(path):
         print "Processing a folder"
         f = Folder(path)
@@ -980,12 +933,18 @@ def countCells(path, TarCol):  #Count not empty cells in target column of CSV fi
 
 
 def Split(in_file, target_column, parts_folder, empty_cells):  #Split files into parts
+    start = time.clock()
     e = Extractor(in_file)
     if not parts_folder:
         parts_folder = "parts"
     if not empty_cells:
         empty_cells = False
-    e.split2Files(target_column, parts_folder, empty_cells)
+    parts = e.split2Files(target_column, parts_folder, empty_cells)
+    for part in parts.keys():
+        e.write_dictionary(parts[part], part + ".csv", e.head)
+    finish = time.clock() - start
+    print "Processed time in seconds:", finish
+
 
 
 def deleteColumns(path, columns):
@@ -1107,6 +1066,7 @@ def CountClusters(csv_file, target_column, mark, num_of_clusters, sort_by_keys, 
     out_file = c.FileName('Clusters' + '%' + target_column)
     c.cWrite(c.sort_dictionary(results, sort_by_keys, reverse), head, out_file)
 
+
 def CountRanges(csv_file, target_column, write, ranges):
     r = Ranges(csv_file)
     stats = r.rangesStat(target_column, ranges)
@@ -1117,6 +1077,7 @@ def CountRanges(csv_file, target_column, write, ranges):
         out_file = r.FileName('Ranges' + '%' + target_column)
         r.cWrite(stats, head, out_file)
 
+
 def ColumnStatistics(csv_file, target_column, write):
     r = Ranges(csv_file)
     stats = r.generate_statistics(target_column)
@@ -1126,6 +1087,7 @@ def ColumnStatistics(csv_file, target_column, write):
         head = ['Metrics', 'Value']
         out_file = r.FileName('Statistics' + '%' + target_column)
         r.cWrite(stats, head, out_file)
+
 
 def get_default_sorting(sort_by_keys):
     if not sort_by_keys:
@@ -1144,8 +1106,6 @@ def main():
 
     headstat = subparsers.add_parser('hs', help='generate statistics for CSV header')
     headstat.add_argument('CSVfile', help='input CSV file', nargs='+')
-
-
 
     matchinfile = subparsers.add_parser('mf', help='extract CSV rows mathed in list file to CSV column')
     matchinfile.add_argument('CSVfile', help='input CSV file')
@@ -1243,9 +1203,6 @@ def main():
     blackList2.add_argument('CSVcol', help='column in CSV file')
     blackList2.add_argument('BlackList', help='black list file')
 
-    cleanFile = subparsers.add_parser('pr', help='Prepare file for delivery to customers and generates errors files')
-    cleanFile.add_argument('CSVfile', help='input CSV file')
-
     avg_per_column = subparsers.add_parser('avg', help='generate average statistics for column values')
     avg_per_column.add_argument('csv_file', help='input CSV file or folder')
     avg_per_column.add_argument('csv_column', help='CSV file column for grouping')
@@ -1275,15 +1232,16 @@ def main():
     clusters.add_argument('-r', '--reverse', help='sort reverse ', action='store_true')
 
     count_ranges = subparsers.add_parser('rc', help='generate statistics according to ranges arguments')
-    count_ranges.add_argument('csv_file',help='input CSV file')
+    count_ranges.add_argument('csv_file', help='input CSV file')
     count_ranges.add_argument('target_column', help='column in CSV file')
-    count_ranges.add_argument('ranges', help='ranges for exracting',nargs="+")
+    count_ranges.add_argument('ranges', help='ranges for exracting', nargs="+")
     count_ranges.add_argument('-w', '--write', help='write to file instead of printing to console', action='store_true')
 
     column_statistics = subparsers.add_parser('cols', help='generate math statistics for column')
     column_statistics.add_argument('csv_file', help='input CSV file')
     column_statistics.add_argument('target_column', help='column in CSV file')
-    column_statistics.add_argument('-w', '--write', help='write to file instead of printing to console', action='store_true')
+    column_statistics.add_argument('-w', '--write', help='write to file instead of printing to console',
+                                   action='store_true')
 
     #onerange=subparsers.add_parser('or',help='extract rows matching digit')
     #onerange.add_argument('CSVfile',help='input CSV file')
@@ -1417,9 +1375,6 @@ def main():
         print oper
         e = Extractor(args.CSVfile)
         e.FilterFile2(Dict, oper)
-    if args.mode == 'pr':
-        e = Extractor(args.CSVfile)
-        e.PrepareFile()
     if args.mode == 'x':
         print 'copy xmls files'
     if args.mode == 'avg':
