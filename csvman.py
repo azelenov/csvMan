@@ -44,7 +44,7 @@ class CSVMan:
 
     #write dictionary data to csv file
     def write_dictionary(self, data, out_path, header):
-        mode = self.checkF(out_path)
+        mode = self.check_path(out_path)
         with open(out_path, mode) as out:
             w = csv.DictWriter(out, fieldnames=header, dialect=self.dialect)
             w.writeheader()
@@ -121,7 +121,7 @@ class CSVMan:
             self.sniff()
         print
 
-    def headStat(self):  #CSV header statistics
+    def header_statistics(self):  
         self.read_as_dict()
         print self.head
         print "Number of columns:", len(self.head)
@@ -134,7 +134,7 @@ class CSVMan:
                 res.append(row[column])
         return res
 
-    def columnStat(self, column, limit=False):  #statistics for column values
+    def column_frequency(self, column, limit=False):  #statistics for column values
         rows = self.get_column(column)
         stats = {}
         for row in rows:
@@ -175,7 +175,8 @@ class CSVMan:
             converted[new_key] = new_value
         return converted
 
-    def convert_type(self, value):
+    @staticmethod
+    def convert_type(value):
         try:
             value = ast.literal_eval(value)
         except ValueError:
@@ -183,7 +184,7 @@ class CSVMan:
         return value
 
 
-    def checkF(self, path):
+    def check_path(self, path):
         if os.path.exists(path):
             print "Please write 'w' for writing, 'a' for 'appending' or 's' for stoping program"
             ans = raw_input('File ' + path + ' exist! Rewrite(w), append(a) or stop program (s)?')
@@ -195,12 +196,13 @@ class CSVMan:
                 sys.exit()
             else:
                 print "Please write 'w' for writing, 'a' for 'appending' or 's' for stoping program"
-                self.checkF(path)
+                self.check_path(path)
         else:
             return 'w'
 
-    def cWrite(self, List, header, path='out.csv'):  #write List to file with header
-        mode = self.checkF(path)
+   #write List to file with header
+    def write_list(self, List, header, path='out.csv'):  
+        mode = self.check_path(path)
         with open(path, mode) as out:
             w = csv.writer(out, dialect=self.dialect)
             w.writerow(header)
@@ -226,16 +228,9 @@ class CSVMan:
                     sufixes[main_part] = 1
         head = ['Suffix', 'Count']
         data = self.sort_dictionary(sufixes)
-        out = self.FileName('TLD')
-        self.cWrite(data, head, out)
+        out = OSMan.new_filename(self.path, 'TLD')
+        self.write_list(data, head, out)
         return data
-
-    def FileName(self, suffix):  #generate New filename
-        parts = self.path.split('.')
-        name = parts[0]
-        ext = parts[-1]
-        newName = name + '%' + str(suffix) + '.' + ext
-        return newName
 
     def Rand(self, List, num=None):  #shuffle data and cut part
         data = List
@@ -256,7 +251,7 @@ class CSVMan:
         print "File:", self.path, ':', len(data), 'rows'
 
 
-class Ranges(CSVMan):  #this class is DEPRECATED!!!
+class Ranges(CSVMan):
     def __init__(self, path):
         CSVMan.__init__(self, path)
 
@@ -375,6 +370,14 @@ class OSMan:
             os.remove(in_file)
             print "Old file", in_file, "deleted!"
             print "_____________________________"
+    
+    @staticmethod        
+    def new_filename(path,  suffix):
+        parts = path.split('.')
+        name = parts[0]
+        ext = parts[-1]
+        new_name = name + '%' + str(suffix) + '.' + ext
+        return new_name
 
 
 
@@ -397,7 +400,7 @@ class Extractor(CSVMan):  #Split files into parts and more
                 if re.search(reg, row[TarCol]): res.append(row)
             elif f:
                 if re.match(reg, row[TarCol]): res.append(row)
-        oPath = self.FileName('re_matched')
+        oPath = OSMan.new_filename(self.path, 're_matched')
         self.write_dictionary(res, oPath, data.fieldnames)
 
     def inList(self, TarCol, List, limit=None, sufix='matched'):  #filter values in target column matched in List
@@ -424,9 +427,9 @@ class Extractor(CSVMan):  #Split files into parts and more
                 if value in List:
                     res.append(row)
         if limit is None:
-            oPath = self.FileName(sufix)
+            oPath = OSMan.new_filename(self.path, sufix)
         else:
-            oPath = self.FileName(sufix + '_limit=' + str(limit))
+            oPath = OSMan.new_filename(self.path, sufix + '_limit=' + str(limit))
         self.write_dictionary(res, oPath, data.fieldnames)
 
     def ReList(self, TarCol, List, sufix='REList'):  #filter values in target column matched in regex List
@@ -449,8 +452,8 @@ class Extractor(CSVMan):  #Split files into parts and more
             if flag: missed.append(row)
             i += 1
 
-        mPath = self.FileName(sufix + "_NOT_matched")
-        hPath = self.FileName(sufix + "_matched")
+        mPath = OSMan.new_filename(self.path, sufix + "_NOT_matched")
+        hPath = OSMan.new_filename(self.path, sufix + "_matched")
 
         self.write_dictionary(missed, mPath, data.fieldnames)
         self.write_dictionary(hit, hPath, data.fieldnames)
@@ -486,8 +489,8 @@ class Extractor(CSVMan):  #Split files into parts and more
 
             i += 1
 
-        mPath = self.FileName(sufix + "_NOT_matched")
-        hPath = self.FileName(sufix + "_matched")
+        mPath = OSMan.new_filename(self.path, sufix + "_NOT_matched")
+        hPath = OSMan.new_filename(self.path, sufix + "_matched")
 
         self.write_dictionary(missed, mPath, data.fieldnames)
         self.write_dictionary(hit, hPath, data.fieldnames)
@@ -532,8 +535,8 @@ class Extractor(CSVMan):  #Split files into parts and more
                     missed.append(row)
             i += 1
 
-        mPath = self.FileName(sufix + "_NOT_matched")
-        hPath = self.FileName(sufix + "_matched")
+        mPath = OSMan.new_filename(self.path, sufix + "_NOT_matched")
+        hPath = OSMan.new_filename(self.path, sufix + "_matched")
 
         self.write_dictionary(missed, mPath, data.fieldnames)
         self.write_dictionary(hit, hPath, data.fieldnames)
@@ -550,7 +553,7 @@ class Extractor(CSVMan):  #Split files into parts and more
             value = row[TarCol].lower()
             if value not in List:
                 res.append(row)
-        oPath = self.FileName('NOT_matched')
+        oPath = OSMan.new_filename(self.path, 'NOT_matched')
         self.write_dictionary(res, oPath, data.fieldnames)
 
     def inFile(self, TarCol, FileName, limit):  #filter values in target column matched in File
@@ -580,7 +583,7 @@ class Extractor(CSVMan):  #Split files into parts and more
         start = time.clock()
         data = self.read_as_dict()
         header = data.fieldnames
-        path = self.FileName('filtered')
+        path = OSMan.new_filename(self.path, 'filtered')
         for key in colValPairs:
             if key not in header:
                 sys.exit(
@@ -606,7 +609,7 @@ class Extractor(CSVMan):  #Split files into parts and more
     def FilterFile2(self, colValPairs, oper):  #filter file according multiple colums values
         data = self.read_as_dict()
         header = data.fieldnames
-        path = self.FileName('filtered')
+        path = OSMan.new_filename(self.path, 'filtered')
 
 
         def makeEx(value, colValPairs, oper):
@@ -680,7 +683,7 @@ class Extractor(CSVMan):  #Split files into parts and more
         data = [row for row in Dict]
         random.shuffle(data)
         data = data[:rand]
-        path = self.FileName('random' + str(rand))
+        path = OSMan.new_filename(self.path, 'random' + str(rand))
         with open(path, 'a') as out:
             w = csv.DictWriter(out, fieldnames=head, dialect=self.dialect)
             w.writeheader()
@@ -694,8 +697,8 @@ class Extractor(CSVMan):  #Split files into parts and more
         self.status = row['Status Description']
         return row
 
-
-class Merger(CSVMan):  #smart merge many file into one
+#smart merge many file into one
+class Merger(CSVMan):  
     columns = 0
 
     def __init__(self, files):
@@ -774,7 +777,7 @@ class Merger(CSVMan):  #smart merge many file into one
 class HumanParts(CSVMan):
     def __init__(self, path, people):
         CSVMan.__init__(self, path)
-        self.out_path = self.FileName('marked')
+        self.out_path = OSMan.new_filename(self.path, 'marked')
         self.path = path
         self.people = [p for p in people]
         self.data = self.read_as_dict()
@@ -923,10 +926,10 @@ def Frequency(path, TarCol, sort_by_keys, reverse, top):  # count Domain Frequan
         print "\nFrequency on column"
         head = [TarCol, 'Count']
         sort_by_keys = get_default_sorting(sort_by_keys)
-        data = c.sort_dictionary(c.columnStat(TarCol), sort_by_keys, reverse)
-        out = c.FileName('Frequency' + '%' + TarCol)
+        data = c.sort_dictionary(c.column_frequency(TarCol), sort_by_keys, reverse)
+        out = OSMan.new_filename(path, 'Frequency' + '%' + TarCol)
         if top: data = data[:top]
-        c.cWrite(data, head, out)
+        c.write_list(data, head, out)
 
 
 def countCells(path, target_column):  #Count not empty cells in target column of CSV file
@@ -966,7 +969,7 @@ def deleteColumns(path, columns):
     for col in columns:
         h2.remove(col)
     print "new header\n", h2
-    oPath = c.FileName('deleted_columns')
+    oPath = OSMan.new_filename(path, 'deleted_columns')
     c.write_dictionary(edata, oPath, h2)
 
 
@@ -981,7 +984,7 @@ def addColumns(path, column):
     h2 = head
     h2.insert(0, column)
     print "new header\n", h2
-    oPath = c.FileName('deleted_columns')
+    oPath = OSMan.new_filename(path, 'deleted_columns')
     c.write_dictionary(edata, oPath, h2)
 
 
@@ -1028,8 +1031,8 @@ def Average(path, csv_column, csv_avg_column, sort_by_keys, reverse):
         head = [csv_column, 'average_' + csv_avg_column]
         sort_by_keys = get_default_sorting(sort_by_keys)
         data = c.sort_dictionary(c.average_stats(csv_column, csv_avg_column), sort_by_keys, reverse)
-        out = c.FileName('Average' + '%' + csv_avg_column)
-        c.cWrite(data, head, out)
+        out = OSMan.new_filename(path, 'Average' + '%' + csv_avg_column)
+        c.write_list(data, head, out)
 
 
 def Plot(path, x_col, y_col):
@@ -1066,8 +1069,8 @@ def CountClusters(csv_file, target_column, mark, num_of_clusters, sort_by_keys, 
     results = clus.generate_statistics(clusters, mark)
 
     head = [target_column + ' ranges', 'count']
-    out_file = c.FileName('Clusters' + '%' + target_column)
-    c.cWrite(c.sort_dictionary(results, sort_by_keys, reverse), head, out_file)
+    out_file = OSMan.new_filename(csv_file, 'Clusters' + '%' + target_column)
+    c.write_list(c.sort_dictionary(results, sort_by_keys, reverse), head, out_file)
 
 
 def CountRanges(csv_file, target_column, write, ranges):
@@ -1077,8 +1080,8 @@ def CountRanges(csv_file, target_column, write, ranges):
         print s[0], ":", s[1]
     if write:
         head = [target_column + ' ranges', 'count']
-        out_file = r.FileName('Ranges' + '%' + target_column)
-        r.cWrite(stats, head, out_file)
+        out_file = OSMan.new_filename(csv_file, 'Ranges' + '%' + target_column)
+        r.write_list(stats, head, out_file)
 
 
 def ColumnStatistics(csv_file, target_column, write):
@@ -1088,8 +1091,8 @@ def ColumnStatistics(csv_file, target_column, write):
         print s[0], ":", s[1]
     if write:
         head = ['Metrics', 'Value']
-        out_file = r.FileName('Statistics' + '%' + target_column)
-        r.cWrite(stats, head, out_file)
+        out_file = r.new_filename('Statistics' + '%' + target_column)
+        r.write_list(stats, head, out_file)
 
 def MergeCSV(folder, out_path):
     if not out_path:
@@ -1272,11 +1275,11 @@ def main():
             if dia:
                 c = CSVMan(f)
                 dialect = c.dialect
-                c.headStat()
+                c.header_statistics()
                 dia = False
             else:
                 c = CSVMan(f, dialect)
-                c.headStat()
+                c.header_statistics()
     elif args.mode == 'c':
         c = CSVMan(args.CSVfile)
         c.countrows()
