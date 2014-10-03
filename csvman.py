@@ -1,4 +1,5 @@
 import ast
+import glob
 
 __author__ = 'ozelenov'
 
@@ -22,13 +23,15 @@ class CSVMan:
     # noinspection PyArgumentList
     def __init__(self, path, dialect=None):
         self.path = path
+        self.dialect = dialect
         # try:
         #     self.auto_dialect_detection()
         # except (Exception):
         #     self.sniff()
-        csv.register_dialect('cd', delimiter=',', quotechar='"', quoting=csv.QUOTE_ALL, lineterminator='\n')
-        self.dialect = 'cd'
-
+        # csv.register_dialect('default', delimiter=',', quotechar='"')
+        # self.dialect = 'default'
+        if not self.dialect:
+            self.detect_csv_dialect()
         self.head = self.read_as_dict().fieldnames
         self.data = self.read_as_dict()
 
@@ -53,17 +56,24 @@ class CSVMan:
                     'Please repeat with other dialect or add columns manually.')
         print "File " + out_path + " has been written,", len(data), ' rows'
 
-    def auto_dialect_detection(self):
+    def detect_csv_dialect(self):
         try:
             f = open(self.path, "rb")
         except IOError:
             sys.exit('No such file or directory:' + self.path)
         d = csv.Sniffer().sniff(f.read(1024))
-        csv.register_dialect('a', d)
-        print " a - dialect auto detection: delimiter=", \
-            csv.get_dialect('a').delimiter, "quotechar=", csv.get_dialect('a').quotechar, \
-            "quoting=", csv.get_dialect('a').quoting, "escapechar=", csv.get_dialect('a').escapechar
-        self.dialect = 'a'
+        d.lineterminator = "\n"
+        csv.register_dialect('auto', d)
+        self.dialect = 'auto'
+        print "Detected dialect:"
+        print "delimiter=", csv.get_dialect(self.dialect).delimiter
+        print "quote char=", csv.get_dialect(self.dialect).quotechar
+        print "quoting=", csv.get_dialect(self.dialect).quoting
+        print "line terminator=", csv.get_dialect(self.dialect)\
+            .lineterminator.replace('\n', '\\n').replace('\r', "\\r")
+        print "escape char=", csv.get_dialect(self.dialect).escapechar
+        print "----------------------------"
+
 
     # noinspection PyArgumentList
     def sniff(self):  #search for CSV file dialect
@@ -300,7 +310,6 @@ class Ranges(CSVMan):  #this class is DEPRECATED!!!
         return results
 
     def rangesCut(self, column, ranges):
-        parts = []
         i = 1
         starts = []
         ends = []
@@ -331,24 +340,42 @@ class Ranges(CSVMan):  #this class is DEPRECATED!!!
         print len(res)
 
 
-class Folder:  #All things with folders
-    def __init__(self, path):
-        self.Dir = path
-        #print self.Dir
+#All things with folder and files
+class OSMan:
+    def __init__(self):
+        pass
 
-    def listF(self):  #list files in Folder
+    @staticmethod
+    def list_files(folder_name):
         files = []
-        for p in sorted(os.listdir(self.Dir)):
+        for p in sorted(os.listdir(folder_name)):
             files.append(p)
         return files
 
-    def createF(self):  #smart create folder
-        if not os.path.exists(self.Dir):
-            os.mkdir(self.Dir)
-            print "Folder " + self.Dir + " has been created."
+    @staticmethod
+    def create_folder(folder_name):
+        if not os.path.exists(folder_name):
+            os.mkdir(folder_name)
+            print "Folder " + folder_name + " has been created."
         else:
-            print "Folder " + self.Dir + " exists."
-            print "Writing to", self.Dir
+            print "Folder " + folder_name + " exists."
+            print "Writing to", folder_name
+
+    @staticmethod
+    def get_files_with_extension(folder_name, extension):
+        return glob.glob(os.path.join(folder_name, extension))
+
+    @staticmethod
+    def get_csv_files(folder_name):
+        return OSMan.get_files_with_extension(folder_name, '*.csv')
+
+    @staticmethod
+    def delete_file_if_exists(in_file):
+        if os.path.exists(in_file):
+            os.remove(in_file)
+            print "Old file", in_file, "deleted!"
+            print "_____________________________"
+
 
 
 class Extractor(CSVMan):  #Split files into parts and more
@@ -622,9 +649,8 @@ class Extractor(CSVMan):  #Split files into parts and more
         total = 0
         data = self.read_as_dict()
         #print data.fieldnames
-        f = Folder(outFolder)
-        f.createF()
-        os.chdir(f.Dir)
+        OSMan.create_folder(outFolder)
+        os.chdir(outFolder)
         stat = {}
         results = {}
         for row in data:
@@ -672,37 +698,40 @@ class Extractor(CSVMan):  #Split files into parts and more
 class Merger(CSVMan):  #smart merge many file into one
     columns = 0
 
-    def __init__(self, path):
-        CSVMan.__init__(self, path)
-        self.iDir = path
-        self.dialect = None
+    def __init__(self, files):
+        CSVMan.__init__(self, files[0])
+        self.files = files
 
-    def merge(self, etalonFile, All='All'):  #merge many CSV files
-        head = self.etalonHeader(etalonFile)
-        self.checkcolumns(head)
-        f = Folder(self.iDir)
-        files = f.listF()
-        All = 'All'
-        f = Folder('All')
-        f.createF()
-        h = True
-        out = open(All + '/' + All + '.csv', 'a')
-        for path in files:
-            c = CSVMan(path, self.dialect)
-            data = c.read_as_dict()
-            w = csv.DictWriter(out, fieldnames=data.fieldnames, dialect=self.dialect)
-            if h:
-                w.writeheader()
-                h = False
-            for row in data:
-                w.writerow(row)
-            print path, 'done'
-        print "All files has been merged successfully to folder:", All
+    #merge CSV files
+    def merge(self, out_path):
+        OSMan.delete_file_if_exists(out_path)
+        print "Merging csv files..."
+        write_header = True
+        with open(out_path, 'a') as out:
+            for csv_file in self.files:
+                c = CSVMan(csv_file, self.dialect)
+                data = c.read_as_dict()
+                head = data.fieldnames
+                # data = [d for d in data]
+                w = csv.DictWriter(out, fieldnames=head, dialect=self.dialect)
+                if write_header:
+                    w.writeheader()
+                    write_header = False
+                w.writerows(data)
+                print csv_file, 'done'
+        print "All files has been merged successfully to file:", out_path
 
-    def etalonHeader(self, etalonFile):  #validating etalon CSV File
-        print "Checking etalon file"
+    def validate(self):
+        self.check_header(self.head)
+        self.check_files(self.files, self.head)
 
-        def ask():
+    def check_header(self, header):
+        for h in header:
+            if re.match('^\s*$', h):
+                print 'Empty column detected in position :', header.index(h) + 1, "value:'", h, "'"
+                self.ask()
+
+    def ask(self):
             ans = raw_input("Do you wanna proceed? (y,n)")
             if ans == 'n':
                 sys.exit('Please fix columns')
@@ -710,46 +739,25 @@ class Merger(CSVMan):  #smart merge many file into one
                 pass
             else:
                 print "answers only yes or no"
-                ask()
+                self.ask()
 
-        f = etalonFile
-        c = CSVMan(f)
-        self.dialect = c.dialect
-        status = False
-        header = c.read_as_dict().fieldnames
-        for h in header:
-            if re.match('^\s*$', h):
-                print 'Empty column detected in position :', header.index(h) + 1, "value:'", h, "'"
-                ask()
-                status = False
-            elif re.match('^Check|check|chek|cheak|delete|link|Link$', h) or re.search('search', h):
-                print 'Suspisious column detected in position:', header.index(h) + 1, ", value:'" + str(h) + "'"
-                ask()
-                status = False
-            else:
-                status = True
-        if status: print "Etalon file - OK"
-        return len(header), header
-
-    def checkcolumns(self, head):  #validating CSV file headers
-        ecol_num = head[0]
-        eHeader = head[1]
-        f = Folder(self.iDir)
-        files = f.listF()
+    #validating CSV file headers
+    def check_files(self, files, primary_header):
         s = []
         fields = []
-        print "Validating CSV files according to etalon"
-        for path in files:
-            c = CSVMan(path, self.dialect)
+        print "Validating CSV file headers..."
+        for file in files:
+            c = CSVMan(file, self.dialect)
             data = c.read_as_dict()
-            col_num = len(data.fieldnames)
-            head = data.fieldnames
-            print path, col_num
-            if col_num != ecol_num: s.append(path)
-            if head != eHeader:
-                fields.append(path)
-                for h in head:
-                    if h not in eHeader:
+            file_head = data.fieldnames
+            col_num = len(file_head)
+            print file, col_num
+            if col_num != len(primary_header):
+                s.append(file)
+            if file_head != primary_header:
+                fields.append(file)
+                for h in file_head:
+                    if h not in primary_header:
                         print 'Wrong column!:', h
                 print
         if s:
@@ -906,8 +914,7 @@ def Scores(inFile, TarCol, scores=False):  # count ranges of scores in CSV file
 def Frequency(path, TarCol, sort_by_keys, reverse, top):  # count Domain Frequancy in file
     if os.path.isdir(path):
         print "Processing a folder"
-        f = Folder(path)
-        files = f.listF()
+        files = OSMan.list_files(path)
         print files
         for f in files:
             Frequency(path + '/' + f, TarCol, sort_by_keys, reverse, top)
@@ -922,12 +929,11 @@ def Frequency(path, TarCol, sort_by_keys, reverse, top):  # count Domain Frequan
         c.cWrite(data, head, out)
 
 
-def countCells(path, TarCol):  #Count not empty cells in target column of CSV file
-    f = Folder(path)
-    files = f.listF()
+def countCells(path, target_column):  #Count not empty cells in target column of CSV file
+    files = path.list_files(path)
     for f in files:
         c = CSVMan(f)
-        data = c.get_column(TarCol)
+        data = c.get_column(target_column)
         #print data
         print f, ':', len(data)
 
@@ -986,8 +992,7 @@ def Rand(inFile, rand):  #create random set
 
 
 def countrowsD(path):  #rewrite
-    f = Folder(path)
-    files = f.listF()
+    files = OSMan.list_files(path)
     i = 0
     for File in files:
         if i > 0:
@@ -1012,8 +1017,7 @@ def RandDomains(CSVfile, DomainColumn, rand, limit=None):
 def Average(path, csv_column, csv_avg_column, sort_by_keys, reverse):
     if os.path.isdir(path):
         print "Processing a folder"
-        f = Folder(path)
-        files = f.listF()
+        files = OSMan.list_files(path)
         print files
         for f in files:
             Average(path + '/' + f, csv_column, csv_avg_column, sort_by_keys, reverse)
@@ -1031,8 +1035,7 @@ def Average(path, csv_column, csv_avg_column, sort_by_keys, reverse):
 def Plot(path, x_col, y_col):
     if os.path.isdir(path):
         print "Processing a folder"
-        f = Folder(path)
-        files = f.listF()
+        files = OSMan.list_files(path)
         print files
         for f in files:
             Plot(path + '/' + f, x_col, y_col)
@@ -1088,6 +1091,13 @@ def ColumnStatistics(csv_file, target_column, write):
         out_file = r.FileName('Statistics' + '%' + target_column)
         r.cWrite(stats, head, out_file)
 
+def MergeCSV(folder, out_path):
+    if not out_path:
+        out_path = "merged.csv"
+    files =  OSMan.get_csv_files(folder)
+    m = Merger(files)
+    m.validate()
+    m.merge(out_path)
 
 def get_default_sorting(sort_by_keys):
     if not sort_by_keys:
@@ -1160,7 +1170,8 @@ def main():
     topleveldomain.add_argument('CSVcol', help='column in CSV file')
 
     merge = subparsers.add_parser('me', help='merge CSV files')
-    merge.add_argument('CSVetalon', help='CSV file with correct header, checked manually')
+    merge.add_argument('folder', help='folder with CSV files for merging')
+    merge.add_argument('-o', '--out_path', help='output path for merged file')
 
     humanparts = subparsers.add_parser('hp', help="markup file according to team")
     humanparts.add_argument('CSVfile', help='input CSV file')
@@ -1303,8 +1314,7 @@ def main():
         print "\nGenerating rows:"
         e.ReMatched(args.CSVcol, args.regex, args.cs, args.fullmatch)
     elif args.mode == 'me':
-        m = Merger(iDir)
-        m.merge(args.CSVetalon)
+        MergeCSV(args.folder, args.out_path)
     elif args.mode == 'hp':
         h = HumanParts(args.CSVfile, args.team)
         h.markFile()
@@ -1392,5 +1402,6 @@ def main():
         ColumnStatistics(args.csv_file, args.target_column, args.write)
 
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
 
