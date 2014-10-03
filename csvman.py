@@ -13,6 +13,7 @@ import random
 import argparse
 import time
 import matplotlib.pyplot as plt
+from scipy import stats, amin, amax, std, mean, linspace
 # from xlsxwriter.workbook import Workbook
 
 
@@ -285,6 +286,17 @@ class Ranges(CSVMan):  #this class is DEPRECATED!!!
                     s += 1
             results.append(["range " + str(start) + "-" + str(end), s])
             values.pop(0)
+        return results
+
+    def generate_statistics(self, column):
+        results = []
+        data = self.get_column(column)
+        data = [float(r) for r in data]
+        results.append(["Length", len(data)])
+        results.append(["Min", amin(data)])
+        results.append(["Max", amax(data)])
+        results.append(["Mean(Average)", mean(data)])
+        results.append(["Standard deviation (sigma)", std(data)])
         return results
 
     def rangesCut(self, column, ranges):
@@ -888,6 +900,17 @@ class Plotter:
         print y_axis
         return x_axis, y_axis
 
+#Mean it's average, std - is standard deviation(sigma)
+    def plot_stats(self, mean, std):
+        x = linspace(-3*std, 3*std, 50)
+        # SF at these values
+        y = stats.norm.sf(x, loc=mean, scale=std)
+        plt.plot(x,y, color="black")
+        plt.xlabel("Variate")
+        plt.ylabel("Probability")
+        plt.title("SF for Gaussian of mean = {0} & std. deviation = {1}".format(
+                   mean, std))
+        plt.draw()
 
 class Clusters:
     def __init__(self):
@@ -1094,6 +1117,15 @@ def CountRanges(csv_file, target_column, write, ranges):
         out_file = r.FileName('Ranges' + '%' + target_column)
         r.cWrite(stats, head, out_file)
 
+def ColumnStatistics(csv_file, target_column, write):
+    r = Ranges(csv_file)
+    stats = r.generate_statistics(target_column)
+    for s in stats:
+        print s[0], ":", s[1]
+    if write:
+        head = [target_column + ' ranges', 'count']
+        out_file = r.FileName('Statistics' + '%' + target_column)
+        r.cWrite(stats, head, out_file)
 
 def get_default_sorting(sort_by_keys):
     if not sort_by_keys:
@@ -1248,6 +1280,11 @@ def main():
     count_ranges.add_argument('ranges', help='ranges for exracting',nargs="+")
     count_ranges.add_argument('-w', '--write', help='write to file instead of printing to console', action='store_true')
 
+    column_statistics = subparsers.add_parser('cols', help='generate math statistics for column')
+    column_statistics.add_argument('csv_file', help='input CSV file')
+    column_statistics.add_argument('target_column', help='column in CSV file')
+    column_statistics.add_argument('-w', '--write', help='write to file instead of printing to console', action='store_true')
+
     #onerange=subparsers.add_parser('or',help='extract rows matching digit')
     #onerange.add_argument('CSVfile',help='input CSV file')
     #onerange.add_argument('CSVcol',help='column in CSV file')
@@ -1396,6 +1433,8 @@ def main():
         CountClusters(args.csv_file, args.target_column, args.mark, args.clusters, args.sort_by_keys, args.reverse)
     if args.mode == 'rc':
         CountRanges(args.csv_file, args.target_column, args.write, args.ranges)
+    if args.mode == 'cols':
+        ColumnStatistics(args.csv_file, args.target_column, args.write)
 
 
 if __name__ == "__main__": main()

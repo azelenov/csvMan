@@ -181,6 +181,21 @@
         </move>
     </target>
 
-    <target name="build" depends="clean,test,split,frequency, average, ranges" />
+    <target name="stats">
+        <exec executable="${python_path}" failonerror="true">
+            <arg value="${script}"/>
+            <arg value="cols"/>
+            <arg value="${multiple_file}"/>
+            <arg value="${multiple_column}"/>
+            <arg value="-w"/>
+        </exec>
+        <move todir="${aggr_dir}">
+            <fileset dir="${input_dir}">
+                <include name="**%Statistics**"/>
+             </fileset>
+        </move>
+    </target>
+
+    <target name="build" depends="clean,test,split,frequency, average, ranges, stats" />
 
 </project>
