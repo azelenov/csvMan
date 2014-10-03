@@ -169,6 +169,8 @@
             <arg value="-w"/>
             <arg value="3"/>
             <arg value="5"/>
+            <arg value="10"/>
+            <arg value="30"/>
             <arg value="50"/>
             <arg value="100"/>
             <arg value="300"/>

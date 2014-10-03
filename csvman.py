@@ -292,7 +292,7 @@ class Ranges(CSVMan):  #this class is DEPRECATED!!!
         results = []
         data = self.get_column(column)
         data = [float(r) for r in data]
-        results.append(["Length", len(data)])
+        results.append(["Count of all values", len(data)])
         results.append(["Min", amin(data)])
         results.append(["Max", amax(data)])
         results.append(["Mean(Average)", mean(data)])
@@ -1123,7 +1123,7 @@ def ColumnStatistics(csv_file, target_column, write):
     for s in stats:
         print s[0], ":", s[1]
     if write:
-        head = [target_column + ' ranges', 'count']
+        head = ['Metrics', 'Value']
         out_file = r.FileName('Statistics' + '%' + target_column)
         r.cWrite(stats, head, out_file)
 
