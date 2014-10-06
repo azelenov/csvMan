@@ -23,15 +23,10 @@ class CSVMan:
     # noinspection PyArgumentList
     def __init__(self, path, dialect=None):
         self.path = path
-        self.dialect = dialect
-        # try:
-        #     self.auto_dialect_detection()
-        # except (Exception):
-        #     self.sniff()
-        # csv.register_dialect('default', delimiter=',', quotechar='"')
-        # self.dialect = 'default'
-        if not self.dialect:
+        if not dialect:
             self.detect_csv_dialect()
+        else:
+            self.dialect = dialect
         self.head = self.read_as_dict().fieldnames
         self.data = self.read_as_dict()
 
@@ -44,7 +39,7 @@ class CSVMan:
 
     #write dictionary data to csv file
     def write_dictionary(self, data, out_path, header):
-        mode = self.check_path(out_path)
+        mode = OSMan.check_path(out_path)
         with open(out_path, mode) as out:
             w = csv.DictWriter(out, fieldnames=header, dialect=self.dialect)
             w.writeheader()
@@ -121,7 +116,7 @@ class CSVMan:
             self.sniff()
         print
 
-    def header_statistics(self):  
+    def print_header(self):
         self.read_as_dict()
         print self.head
         print "Number of columns:", len(self.head)
@@ -134,17 +129,66 @@ class CSVMan:
                 res.append(row[column])
         return res
 
+    def print_size(self):
+        r = self.read_as_dict()
+        print "File:", self.path, ':', r.line_num, 'rows'
+
+    #write List to file with header
+    def write_list(self, List, header, path='out.csv'):
+        mode = OSMan.check_path(path)
+        with open(path, mode) as out:
+            w = csv.writer(out, dialect=self.dialect)
+            w.writerow(header)
+            w.writerows(List)
+        print "File " + path + " has been written,", len(List), ' rows.'
+
+
+class SmartMan(CSVMan):
+    def __init__(self, path):
+        CSVMan.__init__(self, path)
+
+    @staticmethod
+    def sort_dictionary(dictionary, sort_index, reverse):
+        converted_dict = SmartMan.convert_to_natural_types(dictionary)
+        sorted_list = sorted(converted_dict.iteritems(), key=operator.itemgetter(sort_index), reverse=reverse)
+        return sorted_list
+
+    @staticmethod
+    def convert_to_natural_types(dictionary):
+        converted = {}
+        for key, value in dictionary.iteritems():
+            new_key = SmartMan.convert_type(key)
+            new_value = SmartMan.convert_type(value)
+            converted[new_key] = new_value
+        return converted
+
+    @staticmethod
+    def convert_type(value):
+        try:
+            value = ast.literal_eval(value)
+        except ValueError:
+            pass
+        return value
+
+    @staticmethod
+    def randomize(list_data, num=None):
+        data = list_data
+        random.shuffle(data)
+        if num: data = data[:num]
+        return data
+
     def column_frequency(self, column, limit=False):  #statistics for column values
         rows = self.get_column(column)
-        stats = {}
+        results = {}
         for row in rows:
-            if stats.has_key(row) and row != '':
-                stats[row] += 1
+            if results.has_key(row) and row != '':
+                results[row] += 1
             else:
-                stats[row] = 1
-        return stats
+                results[row] = 1
+        return results
 
-    def average_stats(self, csv_column, csv_avg_column):  #statistics for column values
+    #statistics for column values
+    def average_stats(self, csv_column, csv_avg_column):
         stats = {}
         for row in self.read_as_dict():
             row_key = row[csv_column]
@@ -159,55 +203,6 @@ class CSVMan:
             if len(list_of_values) > 0:
                 avg_stats[key] = float(sum(list_of_values) / len(list_of_values))
         return avg_stats
-
-
-    #convert dictionary to sorted list
-    def sort_dictionary(self, dictionary, sort_index, reverse):
-        converted_dict = self.convert_to_natural_types(dictionary)
-        sorted_list = sorted(converted_dict.iteritems(), key=operator.itemgetter(sort_index), reverse=reverse)
-        return sorted_list
-
-    def convert_to_natural_types(self, dictionary):
-        converted = {}
-        for key, value in dictionary.iteritems():
-            new_key = self.convert_type(key)
-            new_value = self.convert_type(value)
-            converted[new_key] = new_value
-        return converted
-
-    @staticmethod
-    def convert_type(value):
-        try:
-            value = ast.literal_eval(value)
-        except ValueError:
-            pass
-        return value
-
-
-    def check_path(self, path):
-        if os.path.exists(path):
-            print "Please write 'w' for writing, 'a' for 'appending' or 's' for stoping program"
-            ans = raw_input('File ' + path + ' exist! Rewrite(w), append(a) or stop program (s)?')
-            if ans == 'w':
-                return 'w'
-            elif ans == 'a':
-                return 'a'
-            elif ans == 's':
-                sys.exit()
-            else:
-                print "Please write 'w' for writing, 'a' for 'appending' or 's' for stoping program"
-                self.check_path(path)
-        else:
-            return 'w'
-
-   #write List to file with header
-    def write_list(self, List, header, path='out.csv'):  
-        mode = self.check_path(path)
-        with open(path, mode) as out:
-            w = csv.writer(out, dialect=self.dialect)
-            w.writerow(header)
-            w.writerows(List)
-        print "File " + path + " has been written,", len(List), ' rows.'
 
     def TopLevelDomain(self, column):  #count Top Level Domain for domains in CSV column
         domains = self.get_column(column)
@@ -227,28 +222,17 @@ class CSVMan:
                 else:
                     sufixes[main_part] = 1
         head = ['Suffix', 'Count']
-        data = self.sort_dictionary(sufixes)
+        data = self.sort_dictionary(sufixes, 0, False)
         out = OSMan.new_filename(self.path, 'TLD')
         self.write_list(data, head, out)
         return data
 
-    def Rand(self, List, num=None):  #shuffle data and cut part
-        data = List
-        random.shuffle(data)
-        if num: data = data[:num]
-        return data
-
-    def countUniq(self, TarCol):
+    def count_unique(self, TarCol):
         print self.path
         data = self.get_column(TarCol)
         udata = set(data)
         print "Count all values:", len(data)
         print "Count unique values:", len(udata)
-
-    def countrows(self):
-        r = self.read_as_dict()
-        data = [d for d in r]
-        print "File:", self.path, ':', len(data), 'rows'
 
 
 class Ranges(CSVMan):
@@ -267,8 +251,8 @@ class Ranges(CSVMan):
     #print ranges in CSV column according to values
     def rangesStat(self, column, values):
         ranges = self.get_column(column)
-        ranges = [self.convert_type(r) for r in ranges]
-        values = [self.convert_type(v) for v in values]
+        ranges = [SmartMan.convert_type(r) for r in ranges]
+        values = [SmartMan.convert_type(v) for v in values]
         #Calculating min, max
         min_value = min(ranges)
         max_value = max(ranges)
@@ -379,6 +363,22 @@ class OSMan:
         new_name = name + '%' + str(suffix) + '.' + ext
         return new_name
 
+    @staticmethod 
+    def check_path(path):
+        if os.path.exists(path):
+            print "Please write 'w' for writing, 'a' for 'appending' or 's' for stoping program"
+            ans = raw_input('File ' + path + ' exist! Rewrite(w), append(a) or stop program (s)?')
+            if ans == 'w':
+                return 'w'
+            elif ans == 'a':
+                return 'a'
+            elif ans == 's':
+                sys.exit()
+            else:
+                print "Please write 'w' for writing, 'a' for 'appending' or 's' for stoping program"
+                OSMan.check_path(path)
+        else:
+            return 'w'
 
 
 class Extractor(CSVMan):  #Split files into parts and more
@@ -749,16 +749,16 @@ class Merger(CSVMan):
         s = []
         fields = []
         print "Validating CSV file headers..."
-        for file in files:
-            c = CSVMan(file, self.dialect)
+        for f in files:
+            c = CSVMan(f, self.dialect)
             data = c.read_as_dict()
             file_head = data.fieldnames
             col_num = len(file_head)
-            print file, col_num
+            print f, col_num
             if col_num != len(primary_header):
-                s.append(file)
+                s.append(f)
             if file_head != primary_header:
-                fields.append(file)
+                fields.append(f)
                 for h in file_head:
                     if h not in primary_header:
                         print 'Wrong column!:', h
@@ -783,14 +783,14 @@ class HumanParts(CSVMan):
         self.data = self.read_as_dict()
         self.header = self.data.fieldnames
 
-    def countrows(self):
+    def print_size(self):
         counter = 0
         for d in self.data:
             counter += 1
         return counter
 
     def divide(self):  #divide num of rows for people
-        num = self.countrows()
+        num = self.print_size()
         n = len(self.people)
         part = num / n
         rest = num - part * n
@@ -922,13 +922,14 @@ def Frequency(path, TarCol, sort_by_keys, reverse, top):  # count Domain Frequan
         for f in files:
             Frequency(path + '/' + f, TarCol, sort_by_keys, reverse, top)
     else:
-        c = CSVMan(path)
+        c = SmartMan(path)
         print "\nFrequency on column"
         head = [TarCol, 'Count']
         sort_by_keys = get_default_sorting(sort_by_keys)
         data = c.sort_dictionary(c.column_frequency(TarCol), sort_by_keys, reverse)
         out = OSMan.new_filename(path, 'Frequency' + '%' + TarCol)
-        if top: data = data[:top]
+        if top:
+            data = data[:top]
         c.write_list(data, head, out)
 
 
@@ -1003,7 +1004,7 @@ def countrowsD(path):  #rewrite
         else:
             c = CSVMan(File)
             i += 1
-        c.countrows()
+        c.print_size()
 
 
 def RandDomains(CSVfile, DomainColumn, rand, limit=None):
@@ -1026,11 +1027,11 @@ def Average(path, csv_column, csv_avg_column, sort_by_keys, reverse):
             Average(path + '/' + f, csv_column, csv_avg_column, sort_by_keys, reverse)
     else:
         print 'Processing a file'
-        c = CSVMan(path)
+        c = SmartMan(path)
         print "\nAverage on column"
         head = [csv_column, 'average_' + csv_avg_column]
         sort_by_keys = get_default_sorting(sort_by_keys)
-        data = c.sort_dictionary(c.average_stats(csv_column, csv_avg_column), sort_by_keys, reverse)
+        data = SmartMan.sort_dictionary(c.average_stats(csv_column, csv_avg_column), sort_by_keys, reverse)
         out = OSMan.new_filename(path, 'Average' + '%' + csv_avg_column)
         c.write_list(data, head, out)
 
@@ -1048,7 +1049,7 @@ def Plot(path, x_col, y_col):
         data = {}
         for row in c.read_as_dict():
             data[row[x_col]] = row[y_col]
-        data = c.sort_dictionary(data, 0)
+        data = SmartMan.sort_dictionary(data, 0, False)
         p = Plotter()
         x, y = p.convert_to_axises(data)
         p.plot_graph(x, y)
@@ -1070,7 +1071,7 @@ def CountClusters(csv_file, target_column, mark, num_of_clusters, sort_by_keys, 
 
     head = [target_column + ' ranges', 'count']
     out_file = OSMan.new_filename(csv_file, 'Clusters' + '%' + target_column)
-    c.write_list(c.sort_dictionary(results, sort_by_keys, reverse), head, out_file)
+    c.write_list(SmartMan.sort_dictionary(results, sort_by_keys, reverse), head, out_file)
 
 
 def CountRanges(csv_file, target_column, write, ranges):
@@ -1091,7 +1092,7 @@ def ColumnStatistics(csv_file, target_column, write):
         print s[0], ":", s[1]
     if write:
         head = ['Metrics', 'Value']
-        out_file = r.new_filename('Statistics' + '%' + target_column)
+        out_file = OSMan.new_filename(csv_file, 'Statistics' + '%' + target_column)
         r.write_list(stats, head, out_file)
 
 def MergeCSV(folder, out_path):
@@ -1275,22 +1276,22 @@ def main():
             if dia:
                 c = CSVMan(f)
                 dialect = c.dialect
-                c.header_statistics()
+                c.print_header()
                 dia = False
             else:
                 c = CSVMan(f, dialect)
-                c.header_statistics()
+                c.print_header()
     elif args.mode == 'c':
         c = CSVMan(args.CSVfile)
-        c.countrows()
+        c.print_size()
     elif args.mode == 'cd':
         countrowsD(iDir)
     elif args.mode == 'cu':
-        c = CSVMan(args.CSVfile)
-        c.countUniq(args.CSVcol)
+        s = SmartMan(args.CSVfile)
+        s.count_unique(args.CSVcol)
     elif args.mode == 'tld':
-        c = CSVMan(args.CSVfile)
-        c.TopLevelDomain(args.CSVcol)
+        s = SmartMan(args.CSVfile)
+        s.TopLevelDomain(args.CSVcol)
     elif args.mode == 'fq':
         Frequency(args.CSVfile, args.CSVcol, args.sort_by_keys, args.reverse, args.top)
     elif args.mode == 'mf':

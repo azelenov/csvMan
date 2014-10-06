@@ -1,6 +1,6 @@
 <!--suppress XmlUnboundNsPrefix -->
 <project name="Connector API analytics tool" default="build">
-    <typedef resource="org/example/tasks.properties" uri="antlib:org.apache.tools.ant"/>
+
 <!--configuration-->
     <property name = "python_path" value="python"/>
     <property name = "script" value="csvman.py"/>
@@ -98,7 +98,7 @@
             <arg value="${key_count_column}"/>
             <arg value="-k"/>
         </exec>
-        <move todir="${key_count_fq}">
+        <move todir="${key_count_fq}" failonerror="true">
             <fileset dir="${key_count_parts}">
                 <include name="**%Frequency**"/>
              </fileset>
@@ -114,7 +114,7 @@
             <arg value="${key_distr_column}"/>
             <arg value="-r"/>
         </exec>
-        <move todir="${key_distr_fq}">
+        <move todir="${key_distr_fq}" failonerror="true">
             <fileset dir="${key_distr_parts}">
                 <include name="**%Frequency**"/>
              </fileset>
@@ -131,7 +131,7 @@
             <arg value="${average_column}"/>
             <arg value="-k"/>
         </exec>
-        <move todir="${key_count_avg}">
+        <move todir="${key_count_avg}" failonerror="true">
             <fileset dir="${key_count_parts}">
                 <include name="**%Average**"/>
              </fileset>
@@ -147,7 +147,7 @@
             <arg value="${average_column}"/>
             <arg value="-k"/>
         </exec>
-        <move todir="${aggr_dir}">
+        <move todir="${aggr_dir}" failonerror="true">
             <fileset dir="${input_dir}">
                 <include name="**%Average**"/>
              </fileset>
@@ -176,7 +176,7 @@
             <arg value="300"/>
             <arg value="500"/>
         </exec>
-        <move todir="${aggr_dir}">
+        <move todir="${aggr_dir}" failonerror="true">
             <fileset dir="${input_dir}">
                 <include name="**%Ranges**"/>
              </fileset>
@@ -191,7 +191,7 @@
             <arg value="${multiple_column}"/>
             <arg value="-w"/>
         </exec>
-        <move todir="${aggr_dir}">
+        <move todir="${aggr_dir}" failonerror="true">
             <fileset dir="${input_dir}">
                 <include name="**%Statistics**"/>
              </fileset>
