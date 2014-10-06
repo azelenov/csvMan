@@ -235,6 +235,25 @@ class SmartMan(CSVMan):
         print "Count all values:", len(data)
         print "Count unique values:", len(udata)
 
+    def get_clusters(self, input_list, num_of_clusters):
+        input_list = [int(i) for i in input_list]
+        input_list.sort()
+        heap_list = []  # A *heap* would be faster
+        for i in range(1, len(input_list)):
+            heap_list.append((int(input_list[i]) - int(input_list[i - 1]), i))
+        heap_list.sort()
+        # b now is [... (20, 6), (20, 9), (57, 3), (120, 7)]
+        # and the last ones are the best split points.
+        heap_list = map(lambda p: p[1], heap_list[-num_of_clusters:])
+        heap_list.sort()
+        # b now is: [3, 7]
+        heap_list.insert(0, 0)
+        heap_list.append(len(input_list) + 1)
+        out = []
+        for i in range(1, len(heap_list)):
+            out.append(input_list[heap_list[i - 1]:heap_list[i]])
+        return out
+
 
 class RangeMan(CSVMan):
     def __init__(self, path):
@@ -842,7 +861,7 @@ class ExcelMan:
         #     workbook.close()
 
 
-class Plotter:
+class PaintMan:
     def __init__(self):
         pass
 
@@ -854,7 +873,8 @@ class Plotter:
         plt.title(self.title)
         plt.show()
 
-    def convert_to_axises(self, dict_data):
+    @staticmethod
+    def convert_to_axises(dict_data):
         y_axis = []
         x_axis = []
         for pair in dict_data:
@@ -875,37 +895,6 @@ class Plotter:
         plt.title("SF for Gaussian of mean = {0} & std. deviation = {1}".format(
             mean, std))
         plt.draw()
-
-
-class Clusters:
-    def __init__(self):
-        pass
-
-    def get_clusters(self, input_list, num_of_clusters):
-        input_list = [int(i) for i in input_list]
-        input_list.sort()
-        heap_list = []  # A *heap* would be faster
-        for i in range(1, len(input_list)):
-            heap_list.append((int(input_list[i]) - int(input_list[i - 1]), i))
-        heap_list.sort()
-        # b now is [... (20, 6), (20, 9), (57, 3), (120, 7)]
-        # and the last ones are the best split points.
-        heap_list = map(lambda p: p[1], heap_list[-num_of_clusters:])
-        heap_list.sort()
-        # b now is: [3, 7]
-        heap_list.insert(0, 0)
-        heap_list.append(len(input_list) + 1)
-        out = []
-        for i in range(1, len(heap_list)):
-            out.append(input_list[heap_list[i - 1]:heap_list[i]])
-        return out
-
-    def generate_statistics(self, list_of_clusters, mark=''):
-        stats = {}
-        for cluster in list_of_clusters:
-            key = max(cluster)
-            stats[key] = len(cluster)
-        return stats
 
 
 def Scores(inFile, TarCol, scores=False):  # count ranges of scores in CSV file
@@ -1051,28 +1040,9 @@ def Plot(path, x_col, y_col):
         for row in c.read_as_dict():
             data[row[x_col]] = row[y_col]
         data = SmartMan.sort_dictionary(data, 0, False)
-        p = Plotter()
+        p = PaintMan()
         x, y = p.convert_to_axises(data)
         p.plot_graph(x, y)
-
-
-def CountClusters(csv_file, target_column, mark, num_of_clusters, sort_by_keys, reverse):
-    if mark is None:
-        mark = ''
-    if num_of_clusters is None:
-        num_of_clusters = 10
-    else:
-        num_of_clusters = int(num_of_clusters)
-    sort_by_keys = get_default_sorting(sort_by_keys)
-    c = CSVMan(csv_file)
-    data = c.get_column(target_column)
-    clus = Clusters()
-    clusters = clus.get_clusters(data, num_of_clusters)
-    results = clus.generate_statistics(clusters, mark)
-
-    head = [target_column + ' ranges', 'count']
-    out_file = OSMan.new_filename(csv_file, 'Clusters' + '%' + target_column)
-    c.write_list(SmartMan.sort_dictionary(results, sort_by_keys, reverse), head, out_file)
 
 
 def CountRanges(csv_file, target_column, write, ranges):
@@ -1239,14 +1209,6 @@ def main():
     plot.add_argument('x_column', help='data for x column')
     plot.add_argument('y_column', help='data for y column')
 
-    clusters = subparsers.add_parser('clu', help='generate clusters statistics')
-    clusters.add_argument('csv_file', help='input CSV file')
-    clusters.add_argument('target_column', help='csv column for analysis')
-    clusters.add_argument('-m', '--mark', help='fullmatch or by word, default fullmatch')
-    clusters.add_argument('-c', '--clusters', help='number of clusters')
-    clusters.add_argument('-k', '--sort_by_keys', help='sort by keys, default sort by values ', action='store_true')
-    clusters.add_argument('-r', '--reverse', help='sort reverse ', action='store_true')
-
     count_ranges = subparsers.add_parser('rc', help='generate statistics according to ranges arguments')
     count_ranges.add_argument('csv_file', help='input CSV file')
     count_ranges.add_argument('target_column', help='column in CSV file')
@@ -1398,9 +1360,6 @@ def main():
     if args.mode == 'plt':
         print "plotting data"
         Plot(args.csv_file, args.x_column, args.y_column)
-    if args.mode == 'clu':
-        print "Cluster analysis"
-        CountClusters(args.csv_file, args.target_column, args.mark, args.clusters, args.sort_by_keys, args.reverse)
     if args.mode == 'rc':
         CountRanges(args.csv_file, args.target_column, args.write, args.ranges)
     if args.mode == 'cols':

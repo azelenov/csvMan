@@ -198,6 +198,6 @@
         </move>
     </target>
 
-    <target name="build" depends="clean,test,split,frequency, average, ranges, stats" />
+    <target name="build" depends="clean, test, split, frequency, average, ranges, stats" />
 
 </project>
