@@ -204,7 +204,8 @@ class SmartMan(CSVMan):
                 avg_stats[key] = float(sum(list_of_values) / len(list_of_values))
         return avg_stats
 
-    def TopLevelDomain(self, column):  #count Top Level Domain for domains in CSV column
+    #count Top Level Domain for domains in CSV column
+    def count_top_level_domains(self, column):
         domains = self.get_column(column)
         sufixes = {}
         for domain in domains:
@@ -235,7 +236,7 @@ class SmartMan(CSVMan):
         print "Count unique values:", len(udata)
 
 
-class Ranges(CSVMan):
+class RangeMan(CSVMan):
     def __init__(self, path):
         CSVMan.__init__(self, path)
 
@@ -381,7 +382,7 @@ class OSMan:
             return 'w'
 
 
-class Extractor(CSVMan):  #Split files into parts and more
+class DigMan(CSVMan):  #Split files into parts and more
     def __init__(self, path, dialect=None):
         CSVMan.__init__(self, path, dialect)
         self.ans = ""
@@ -698,7 +699,7 @@ class Extractor(CSVMan):  #Split files into parts and more
         return row
 
 #smart merge many file into one
-class Merger(CSVMan):  
+class MergeMan(CSVMan):
     columns = 0
 
     def __init__(self, files):
@@ -774,7 +775,7 @@ class Merger(CSVMan):
             print
 
 
-class HumanParts(CSVMan):
+class MarkMan(CSVMan):
     def __init__(self, path, people):
         CSVMan.__init__(self, path)
         self.out_path = OSMan.new_filename(self.path, 'marked')
@@ -908,7 +909,7 @@ class Clusters:
 
 
 def Scores(inFile, TarCol, scores=False):  # count ranges of scores in CSV file
-    r = Ranges(inFile)
+    r = RangeMan(inFile)
     r.rangeStat(TarCol)
     if not scores:
         r.rangesStat(TarCol, range(650, 1050, 50))
@@ -944,7 +945,7 @@ def countCells(path, target_column):  #Count not empty cells in target column of
 
 def Split(in_file, target_column, parts_folder, empty_cells):  #Split files into parts
     start = time.clock()
-    e = Extractor(in_file)
+    e = DigMan(in_file)
     if not parts_folder:
         parts_folder = "parts"
     if not empty_cells:
@@ -990,7 +991,7 @@ def addColumns(path, column):
 
 
 def Rand(inFile, rand):  #create random set
-    e = Extractor(inFile)
+    e = DigMan(inFile)
     print "Generating random..."
     e.get_random(rand)
 
@@ -1014,7 +1015,7 @@ def RandDomains(CSVfile, DomainColumn, rand, limit=None):
     ucolumn = set(column)
     List = [u for u in ucolumn]
     random.shuffle(List)
-    e = Extractor(CSVfile, c.dialect)
+    e = DigMan(CSVfile, c.dialect)
     e.inList(DomainColumn, List[:rand], limit, sufix='rand' + str(rand) + str(DomainColumn))
 
 
@@ -1075,7 +1076,7 @@ def CountClusters(csv_file, target_column, mark, num_of_clusters, sort_by_keys, 
 
 
 def CountRanges(csv_file, target_column, write, ranges):
-    r = Ranges(csv_file)
+    r = RangeMan(csv_file)
     stats = r.rangesStat(target_column, ranges)
     for s in stats:
         print s[0], ":", s[1]
@@ -1086,7 +1087,7 @@ def CountRanges(csv_file, target_column, write, ranges):
 
 
 def ColumnStatistics(csv_file, target_column, write):
-    r = Ranges(csv_file)
+    r = RangeMan(csv_file)
     stats = r.generate_statistics(target_column)
     for s in stats:
         print s[0], ":", s[1]
@@ -1099,7 +1100,7 @@ def MergeCSV(folder, out_path):
     if not out_path:
         out_path = "merged.csv"
     files =  OSMan.get_csv_files(folder)
-    m = Merger(files)
+    m = MergeMan(files)
     m.validate()
     m.merge(out_path)
 
@@ -1291,11 +1292,11 @@ def main():
         s.count_unique(args.CSVcol)
     elif args.mode == 'tld':
         s = SmartMan(args.CSVfile)
-        s.TopLevelDomain(args.CSVcol)
+        s.count_top_level_domains(args.CSVcol)
     elif args.mode == 'fq':
         Frequency(args.CSVfile, args.CSVcol, args.sort_by_keys, args.reverse, args.top)
     elif args.mode == 'mf':
-        e = Extractor(args.CSVfile)
+        e = DigMan(args.CSVfile)
         print "\nMatching in  file:"
         e.inFile(args.CSVcol, args.ListFile, args.limit)
     elif args.mode == 'ra':
@@ -1304,23 +1305,23 @@ def main():
         for f in args.CSVfiles:
             print f
             if dia:
-                e = Extractor(f)
+                e = DigMan(f)
                 dialect = e.dialect
                 e.get_random(args.top)
                 dia = False
             else:
-                e = Extractor(f, dialect)
+                e = DigMan(f, dialect)
                 e.get_random(args.top)
     elif args.mode == 'sp':
         Split(args.csv_file, args.target_column, args.folder, args.empty)
     elif args.mode == 're':
-        e = Extractor(args.CSVfile)
+        e = DigMan(args.CSVfile)
         print "\nGenerating rows:"
         e.ReMatched(args.CSVcol, args.regex, args.cs, args.fullmatch)
     elif args.mode == 'me':
         MergeCSV(args.folder, args.out_path)
     elif args.mode == 'hp':
-        h = HumanParts(args.CSVfile, args.team)
+        h = MarkMan(args.CSVfile, args.team)
         h.markFile()
     elif args.mode == 'fi':
         keys = []
@@ -1334,17 +1335,17 @@ def main():
             vals.append(val)
         Dict = dict(zip(keys, vals))
         print "Matching according to dictionary", Dict
-        e = Extractor(args.CSVfile)
+        e = DigMan(args.CSVfile)
         e.FilterFile(Dict)
     if args.mode == 'nf':
-        e = Extractor(args.CSVfile)
+        e = DigMan(args.CSVfile)
         print "\nRows not in file:"
         e.NotInFile(args.CSVcol, args.ListFile)
     if args.mode == 'rd':
         print 'max=', args.limit
         RandDomains(args.CSVfile, args.column, args.rand, args.limit)
     if args.mode == 'rf':
-        e = Extractor(args.CSVfile)
+        e = DigMan(args.CSVfile)
         print "\nAnalyzing cells according to regular expressions list.."
         e.ReFile(args.CSVcol, args.ListFile)
     if args.mode == 'dc':
@@ -1356,12 +1357,12 @@ def main():
             addColumns(f, args.columns)
 
     if args.mode == 'bl':
-        e = Extractor(args.CSVfile)
+        e = DigMan(args.CSVfile)
         e.BlackList(args.CSVcol, args.BlackList)
 
     if args.mode == 'bl2':
 
-        e = Extractor(args.CSVfile)
+        e = DigMan(args.CSVfile)
         if args.wordsmatch:
             e.BlackList2(args.CSVcol, args.BlackList, args.wordsmatch)
         else:
@@ -1387,7 +1388,7 @@ def main():
         Dict = dict(zip(keys, vals))
         print Dict
         print oper
-        e = Extractor(args.CSVfile)
+        e = DigMan(args.CSVfile)
         e.FilterFile2(Dict, oper)
     if args.mode == 'x':
         print 'copy xmls files'
