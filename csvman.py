@@ -374,8 +374,8 @@ class OSMan:
             os.remove(in_file)
             print "Old file", in_file, "deleted!"
             print "_____________________________"
-    
-    @staticmethod        
+
+    @staticmethod
     def new_filename(path,  suffix):
         parts = path.split('.')
         name = parts[0]
@@ -383,7 +383,7 @@ class OSMan:
         new_name = name + '%' + str(suffix) + '.' + ext
         return new_name
 
-    @staticmethod 
+    @staticmethod
     def check_path(path):
         if os.path.exists(path):
             print "Please write 'w' for writing, 'a' for 'appending' or 's' for stoping program"
@@ -399,6 +399,15 @@ class OSMan:
                 OSMan.check_path(path)
         else:
             return 'w'
+
+    @staticmethod
+    def process_each_file(path, function, ext='*.csv'):
+        print "Processing the folder:", path
+        files = OSMan.get_files_with_extension(path, ext)
+        print files
+        for f in files:
+            global_args.csv_file = f
+            function()
 
 
 class DigMan(CSVMan):  #Split files into parts and more
@@ -1008,15 +1017,16 @@ def RandDomains(CSVfile, DomainColumn, rand, limit=None):
     e.inList(DomainColumn, List[:rand], limit, sufix='rand' + str(rand) + str(DomainColumn))
 
 
-def Average(path, csv_column, csv_avg_column, sort_by_keys, reverse):
-    if os.path.isdir(path):
-        print "Processing a folder"
-        files = OSMan.list_files(path)
-        print files
-        for f in files:
-            Average(path + '/' + f, csv_column, csv_avg_column, sort_by_keys, reverse)
+def Average():
+    if os.path.isdir(global_args.csv_file):
+        OSMan.process_each_file(global_args.csv_file, Average)
     else:
         print 'Processing a file'
+        path = global_args.csv_file
+        csv_column = global_args.csv_column
+        csv_avg_column = global_args.csv_avg_column
+        sort_by_keys = global_args.sort_by_keys
+        reverse = global_args.reverse
         c = SmartMan(path)
         print "\nAverage on column"
         head = [csv_column, 'average_' + csv_avg_column]
@@ -1066,6 +1076,7 @@ def ColumnStatistics(csv_file, target_column, write):
         out_file = OSMan.new_filename(csv_file, 'Statistics' + '%' + target_column)
         r.write_list(stats, head, out_file)
 
+
 def MergeCSV(folder, out_path):
     if not out_path:
         out_path = "merged.csv"
@@ -1073,6 +1084,7 @@ def MergeCSV(folder, out_path):
     m = MergeMan(files)
     m.validate()
     m.merge(out_path)
+
 
 def get_default_sorting(sort_by_keys):
     if not sort_by_keys:
@@ -1226,16 +1238,15 @@ def main():
     #onerange.add_argument('CSVcol',help='column in CSV file')
     #onerange.add_argument('Range',help='range for exracting',type=float)
 
+    global global_args
+    global_args = parser.parse_args()
 
-    args = parser.parse_args()
-
-    if args.mode == 'hs':
+    if global_args.mode == 'hs':
         print "\nHeader statistics output:"
         dia = True
         dialect = 'a'
-        for f in args.CSVfile:
+        for f in global_args.CSVfile:
             print f
-
             if dia:
                 c = CSVMan(f)
                 dialect = c.dialect
@@ -1244,51 +1255,51 @@ def main():
             else:
                 c = CSVMan(f, dialect)
                 c.print_header()
-    elif args.mode == 'c':
-        c = CSVMan(args.CSVfile)
+    elif global_args.mode == 'c':
+        c = CSVMan(global_args.CSVfile)
         c.print_size()
-    elif args.mode == 'cd':
+    elif global_args.mode == 'cd':
         countrowsD(iDir)
-    elif args.mode == 'cu':
-        s = SmartMan(args.CSVfile)
-        s.count_unique(args.CSVcol)
-    elif args.mode == 'tld':
-        s = SmartMan(args.CSVfile)
-        s.count_top_level_domains(args.CSVcol)
-    elif args.mode == 'fq':
-        Frequency(args.CSVfile, args.CSVcol, args.sort_by_keys, args.reverse, args.top)
-    elif args.mode == 'mf':
-        e = DigMan(args.CSVfile)
+    elif global_args.mode == 'cu':
+        s = SmartMan(global_args.CSVfile)
+        s.count_unique(global_args.CSVcol)
+    elif global_args.mode == 'tld':
+        s = SmartMan(global_args.CSVfile)
+        s.count_top_level_domains(global_args.CSVcol)
+    elif global_args.mode == 'fq':
+        Frequency(global_args.CSVfile, global_args.CSVcol, global_args.sort_by_keys, global_args.reverse, global_args.top)
+    elif global_args.mode == 'mf':
+        e = DigMan(global_args.CSVfile)
         print "\nMatching in  file:"
-        e.inFile(args.CSVcol, args.ListFile, args.limit)
-    elif args.mode == 'ra':
+        e.inFile(global_args.CSVcol, global_args.ListFile, global_args.limit)
+    elif global_args.mode == 'ra':
         dia = True
         dialect = 'a'
-        for f in args.CSVfiles:
+        for f in global_args.CSVfiles:
             print f
             if dia:
                 e = DigMan(f)
                 dialect = e.dialect
-                e.get_random(args.top)
+                e.get_random(global_args.top)
                 dia = False
             else:
                 e = DigMan(f, dialect)
-                e.get_random(args.top)
-    elif args.mode == 'sp':
-        Split(args.csv_file, args.target_column, args.folder, args.empty)
-    elif args.mode == 're':
-        e = DigMan(args.CSVfile)
+                e.get_random(global_args.top)
+    elif global_args.mode == 'sp':
+        Split(global_args.csv_file, global_args.target_column, global_args.folder, global_args.empty)
+    elif global_args.mode == 're':
+        e = DigMan(global_args.CSVfile)
         print "\nGenerating rows:"
-        e.ReMatched(args.CSVcol, args.regex, args.cs, args.fullmatch)
-    elif args.mode == 'me':
-        MergeCSV(args.folder, args.out_path)
-    elif args.mode == 'hp':
-        h = MarkMan(args.CSVfile, args.team)
+        e.ReMatched(global_args.CSVcol, global_args.regex, global_args.cs, global_args.fullmatch)
+    elif global_args.mode == 'me':
+        MergeCSV(global_args.folder, global_args.out_path)
+    elif global_args.mode == 'hp':
+        h = MarkMan(global_args.CSVfile, global_args.team)
         h.markFile()
-    elif args.mode == 'fi':
+    elif global_args.mode == 'fi':
         keys = []
         vals = []
-        for p in args.Dict:
+        for p in global_args.Dict:
             try:
                 key, val = p.split('=')
             except ValueError:
@@ -1297,46 +1308,46 @@ def main():
             vals.append(val)
         Dict = dict(zip(keys, vals))
         print "Matching according to dictionary", Dict
-        e = DigMan(args.CSVfile)
+        e = DigMan(global_args.CSVfile)
         e.FilterFile(Dict)
-    if args.mode == 'nf':
-        e = DigMan(args.CSVfile)
+    if global_args.mode == 'nf':
+        e = DigMan(global_args.CSVfile)
         print "\nRows not in file:"
-        e.NotInFile(args.CSVcol, args.ListFile)
-    if args.mode == 'rd':
-        print 'max=', args.limit
-        RandDomains(args.CSVfile, args.column, args.rand, args.limit)
-    if args.mode == 'rf':
-        e = DigMan(args.CSVfile)
+        e.NotInFile(global_args.CSVcol, global_args.ListFile)
+    if global_args.mode == 'rd':
+        print 'max=', global_args.limit
+        RandDomains(global_args.CSVfile, global_args.column, global_args.rand, global_args.limit)
+    if global_args.mode == 'rf':
+        e = DigMan(global_args.CSVfile)
         print "\nAnalyzing cells according to regular expressions list.."
-        e.ReFile(args.CSVcol, args.ListFile)
-    if args.mode == 'dc':
-        deleteColumns(args.CSVfile, args.columns)
-    if args.mode == 'ac':
-        print args.CSVfile
-        for f in args.CSVfile:
+        e.ReFile(global_args.CSVcol, global_args.ListFile)
+    if global_args.mode == 'dc':
+        deleteColumns(global_args.CSVfile, global_args.columns)
+    if global_args.mode == 'ac':
+        print global_args.CSVfile
+        for f in global_args.CSVfile:
             print f
-            addColumns(f, args.columns)
+            addColumns(f, global_args.columns)
 
-    if args.mode == 'bl':
-        e = DigMan(args.CSVfile)
-        e.BlackList(args.CSVcol, args.BlackList)
+    if global_args.mode == 'bl':
+        e = DigMan(global_args.CSVfile)
+        e.BlackList(global_args.CSVcol, global_args.BlackList)
 
-    if args.mode == 'bl2':
+    if global_args.mode == 'bl2':
 
-        e = DigMan(args.CSVfile)
-        if args.wordsmatch:
-            e.BlackList2(args.CSVcol, args.BlackList, args.wordsmatch)
+        e = DigMan(global_args.CSVfile)
+        if global_args.wordsmatch:
+            e.BlackList2(global_args.CSVcol, global_args.BlackList, global_args.wordsmatch)
         else:
 
-            e.BlackList2(args.CSVcol, args.BlackList)
+            e.BlackList2(global_args.CSVcol, global_args.BlackList)
 
-    if args.mode == 'fi2':
-        print args.Expr
+    if global_args.mode == 'fi2':
+        print global_args.Expr
         keys = []
         vals = []
         oper = []
-        for exp in args.Expr:
+        for exp in global_args.Expr:
             if '=' in exp:
                 key, val = exp.split('=')
                 keys.append(key)
@@ -1350,22 +1361,21 @@ def main():
         Dict = dict(zip(keys, vals))
         print Dict
         print oper
-        e = DigMan(args.CSVfile)
+        e = DigMan(global_args.CSVfile)
         e.FilterFile2(Dict, oper)
-    if args.mode == 'x':
+    if global_args.mode == 'x':
         print 'copy xmls files'
-    if args.mode == 'avg':
+    if global_args.mode == 'avg':
         print "average per column"
-        Average(args.csv_file, args.csv_column, args.csv_avg_column, args.sort_by_keys, args.reverse)
-    if args.mode == 'plt':
+        Average()
+    if global_args.mode == 'plt':
         print "plotting data"
-        Plot(args.csv_file, args.x_column, args.y_column)
-    if args.mode == 'rc':
-        CountRanges(args.csv_file, args.target_column, args.write, args.ranges)
-    if args.mode == 'cols':
-        ColumnStatistics(args.csv_file, args.target_column, args.write)
+        Plot(global_args.csv_file, global_args.x_column, global_args.y_column)
+    if global_args.mode == 'rc':
+        CountRanges(global_args.csv_file, global_args.target_column, global_args.write, global_args.ranges)
+    if global_args.mode == 'cols':
+        ColumnStatistics(global_args.csv_file, global_args.target_column, global_args.write)
 
 
 if __name__ == "__main__":
     main()
-
